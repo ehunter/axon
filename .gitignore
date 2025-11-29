@@ -50,6 +50,7 @@ htmlcov/
 # Data files (large files should not be in git)
 data/papers/
 data/imports/
+*.csv
 
 # Logs
 *.log
