@@ -15,9 +15,10 @@ console = Console()
 
 @app.command("generate")
 def generate_embeddings(
-    batch_size: int = typer.Option(100, help="Number of samples per batch"),
+    batch_size: int = typer.Option(50, help="Number of samples per batch"),
     limit: Optional[int] = typer.Option(None, help="Maximum samples to process"),
     force: bool = typer.Option(False, help="Regenerate embeddings for all samples"),
+    delay: float = typer.Option(1.0, help="Delay between batches (seconds) for rate limiting"),
 ):
     """Generate embeddings for samples in the database.
     
@@ -32,6 +33,7 @@ def generate_embeddings(
     
     console.print("🧠 [bold]Axon Embedding Generator[/bold]")
     console.print(f"   Batch size: {batch_size}")
+    console.print(f"   Delay: {delay}s between batches")
     if limit:
         console.print(f"   Limit: {limit}")
     console.print()
@@ -41,6 +43,7 @@ def generate_embeddings(
         batch_size=batch_size,
         limit=limit,
         force=force,
+        delay=delay,
     ))
 
 
@@ -49,8 +52,10 @@ async def _generate_embeddings(
     batch_size: int,
     limit: Optional[int],
     force: bool,
+    delay: float,
 ):
     """Generate embeddings asynchronously."""
+    import asyncio as aio
     from sqlalchemy import select, func, text
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     
@@ -118,12 +123,16 @@ async def _generate_embeddings(
                     embeddings = await embedding_service.embed_samples(samples)
                     
                     # Update samples with embeddings
+                    conn = await session.connection()
+                    raw_conn = await conn.get_raw_connection()
+                    asyncpg_conn = raw_conn.driver_connection
+                    
                     for sample, embedding in zip(samples, embeddings):
-                        # Use raw SQL to update vector column
                         embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
-                        await session.execute(
-                            text("UPDATE samples SET embedding = :embedding::vector WHERE id = :id"),
-                            {"embedding": embedding_str, "id": sample.id}
+                        await asyncpg_conn.execute(
+                            "UPDATE samples SET embedding = $1::vector WHERE id = $2",
+                            embedding_str,
+                            sample.id
                         )
                     
                     await session.commit()
@@ -138,6 +147,10 @@ async def _generate_embeddings(
                 
                 if force:
                     offset += batch_size
+                
+                # Rate limiting delay
+                if delay > 0 and processed < total_count:
+                    await aio.sleep(delay)
         
         console.print()
         console.print(f"[green]✓[/green] Generated embeddings for {processed} samples")
