@@ -6,7 +6,7 @@ commands and API endpoints.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -177,7 +177,7 @@ class SampleImporter:
             if field_name in data:
                 setattr(sample, field_name, data[field_name])
 
-        sample.updated_at = datetime.now(UTC)
+        sample.updated_at = datetime.utcnow()
 
     async def import_sample(self, data: dict[str, Any]) -> ImportResult:
         """Import a single sample.

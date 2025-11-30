@@ -4,7 +4,7 @@ This module defines all database models for the brain bank discovery system.
 Models support multi-source data integration with flexible schema design.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -60,7 +60,7 @@ class DataSource(Base):
     config: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     characteristics: Mapped[list["SourceCharacteristic"]] = relationship(
@@ -84,7 +84,7 @@ class SourceCharacteristic(Base):
     characteristic: Mapped[str] = mapped_column(Text, nullable=False)
     agent_guidance: Mapped[str | None] = mapped_column(Text)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     source: Mapped["DataSource"] = relationship(
@@ -116,15 +116,15 @@ class Sample(Base):
     donor_race: Mapped[str | None] = mapped_column(String(100))
     donor_ethnicity: Mapped[str | None] = mapped_column(String(100))
 
-    # Clinical Information
-    primary_diagnosis: Mapped[str | None] = mapped_column(String(500))
-    primary_diagnosis_code: Mapped[str | None] = mapped_column(String(50))
+    # Clinical Information (using Text for potentially long values)
+    primary_diagnosis: Mapped[str | None] = mapped_column(Text)
+    primary_diagnosis_code: Mapped[str | None] = mapped_column(Text)  # Can have multiple ICD codes
     secondary_diagnoses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
-    cause_of_death: Mapped[str | None] = mapped_column(String(500))
+    cause_of_death: Mapped[str | None] = mapped_column(Text)
     manner_of_death: Mapped[str | None] = mapped_column(String(100))
 
     # Tissue Details
-    brain_region: Mapped[str | None] = mapped_column(String(200))
+    brain_region: Mapped[str | None] = mapped_column(Text)  # Can be very long (50+ regions)
     brain_region_code: Mapped[str | None] = mapped_column(String(50))
     tissue_type: Mapped[str | None] = mapped_column(String(100))
     hemisphere: Mapped[str | None] = mapped_column(String(20))
@@ -148,9 +148,9 @@ class Sample(Base):
     searchable_text: Mapped[str | None] = mapped_column(Text)
 
     # Metadata
-    imported_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # Note: embedding vector column would be added via Alembic migration
@@ -168,9 +168,9 @@ class Conversation(Base):
     user_id: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str | None] = mapped_column(String(500))
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # Relationships
@@ -200,7 +200,7 @@ class Message(Base):
 
     # Metadata
     tokens_used: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(
@@ -230,9 +230,9 @@ class Paper(Base):
     processing_status: Mapped[str] = mapped_column(String(50), default="pending")
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     # Relationships
@@ -260,7 +260,7 @@ class PaperChunk(Base):
     section_title: Mapped[str | None] = mapped_column(String(500))
     page_number: Mapped[int | None] = mapped_column(Integer)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     paper: Mapped["Paper"] = relationship("Paper", back_populates="chunks")

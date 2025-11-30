@@ -68,14 +68,14 @@ def upgrade() -> None:
         sa.Column('donor_sex', sa.String(20)),
         sa.Column('donor_race', sa.String(100)),
         sa.Column('donor_ethnicity', sa.String(100)),
-        # Clinical Information
-        sa.Column('primary_diagnosis', sa.String(500)),
-        sa.Column('primary_diagnosis_code', sa.String(50)),
+        # Clinical Information (using Text for potentially long values)
+        sa.Column('primary_diagnosis', sa.Text),
+        sa.Column('primary_diagnosis_code', sa.Text),  # Can have multiple ICD codes
         sa.Column('secondary_diagnoses', sa.JSON),
-        sa.Column('cause_of_death', sa.String(500)),
+        sa.Column('cause_of_death', sa.Text),
         sa.Column('manner_of_death', sa.String(100)),
         # Tissue Details
-        sa.Column('brain_region', sa.String(200)),
+        sa.Column('brain_region', sa.Text),  # Can be very long
         sa.Column('brain_region_code', sa.String(50)),
         sa.Column('tissue_type', sa.String(100)),
         sa.Column('hemisphere', sa.String(20)),
@@ -101,7 +101,8 @@ def upgrade() -> None:
     )
     
     # Add vector column for embeddings (PostgreSQL with pgvector)
-    op.execute('ALTER TABLE samples ADD COLUMN embedding vector(3072)')
+    # Using 1536 dimensions (text-embedding-3-small) - pgvector limits to 2000 dims
+    op.execute('ALTER TABLE samples ADD COLUMN embedding vector(1536)')
     
     # Conversations table
     op.create_table(
@@ -157,19 +158,20 @@ def upgrade() -> None:
     )
     
     # Add vector column for paper chunk embeddings
-    op.execute('ALTER TABLE paper_chunks ADD COLUMN embedding vector(3072)')
+    op.execute('ALTER TABLE paper_chunks ADD COLUMN embedding vector(1536)')
     
-    # Create indexes for vector similarity search
+    # Create indexes for vector similarity search (using HNSW for >2000 dimensions)
+    # HNSW provides better recall than IVFFlat and supports more dimensions
     op.execute('''
         CREATE INDEX idx_samples_embedding 
-        ON samples USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 100)
+        ON samples USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64)
     ''')
     
     op.execute('''
         CREATE INDEX idx_paper_chunks_embedding 
-        ON paper_chunks USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 100)
+        ON paper_chunks USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64)
     ''')
     
     # Create indexes for common query patterns
