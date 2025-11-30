@@ -107,3 +107,40 @@ class FiltersResponse(BaseModel):
     brain_regions: list[str]
     sexes: list[str]
 
+
+class SemanticSearchRequest(BaseModel):
+    """Semantic search request using natural language."""
+    
+    # Natural language query
+    query: str = Field(..., min_length=3, description="Natural language search query")
+    
+    # Optional filters to combine with semantic search
+    source_bank: str | None = None
+    diagnosis: str | None = None
+    brain_region: str | None = None
+    sex: str | None = None
+    min_age: int | None = None
+    max_age: int | None = None
+    min_rin: float | None = None
+    max_pmi: float | None = None
+    
+    # Results
+    limit: int = Field(default=10, le=100)
+
+
+class SemanticSearchResult(BaseModel):
+    """A single semantic search result with similarity score."""
+    
+    model_config = {"from_attributes": True}
+    
+    sample: SampleResponse
+    score: float = Field(..., description="Similarity score (0-1, higher is better)")
+
+
+class SemanticSearchResponse(BaseModel):
+    """Semantic search response with ranked results."""
+    
+    query: str
+    results: list[SemanticSearchResult]
+    total: int
+

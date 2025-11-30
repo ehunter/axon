@@ -1,7 +1,7 @@
 """Sample API endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from axon.api.dependencies import get_db
@@ -11,9 +11,13 @@ from axon.api.schemas import (
     SampleListResponse,
     SampleResponse,
     SearchRequest,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
+    SemanticSearchResult,
     SourceCount,
     StatsResponse,
 )
+from axon.config import get_settings
 from axon.db.models import Sample
 
 router = APIRouter(prefix="/samples", tags=["samples"])
@@ -222,5 +226,145 @@ async def search_samples(
         total=total,
         limit=search.limit,
         offset=search.offset,
+    )
+
+
+@router.post("/semantic-search", response_model=SemanticSearchResponse)
+async def semantic_search(
+    request: SemanticSearchRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SemanticSearchResponse:
+    """Search samples using natural language and vector similarity.
+    
+    Uses semantic understanding to find relevant samples based on meaning,
+    not just keyword matching. Optionally combine with filters.
+    """
+    from axon.rag.embeddings import EmbeddingService
+    
+    settings = get_settings()
+    
+    if not settings.openai_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Semantic search unavailable: OpenAI API key not configured"
+        )
+    
+    # Generate embedding for the query
+    embedding_service = EmbeddingService(api_key=settings.openai_api_key)
+    query_embedding = await embedding_service.embed_query(request.query)
+    embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
+    
+    # Build SQL query with vector similarity
+    sql = """
+        SELECT 
+            id, source_bank, external_id, source_url,
+            donor_age, donor_age_range, donor_sex, donor_race, donor_ethnicity,
+            primary_diagnosis, primary_diagnosis_code, secondary_diagnoses,
+            cause_of_death, manner_of_death,
+            brain_region, brain_region_code, tissue_type, hemisphere, preservation_method,
+            postmortem_interval_hours, ph_level, rin_score, quality_metrics,
+            quantity_available, is_available, raw_data, extended_data,
+            1 - (embedding <=> $1::vector) as similarity
+        FROM samples
+        WHERE embedding IS NOT NULL
+    """
+    
+    params = [embedding_str]
+    param_idx = 2
+    
+    # Add filters
+    if request.source_bank:
+        sql += f" AND source_bank = ${param_idx}"
+        params.append(request.source_bank)
+        param_idx += 1
+    
+    if request.diagnosis:
+        sql += f" AND primary_diagnosis ILIKE ${param_idx}"
+        params.append(f"%{request.diagnosis}%")
+        param_idx += 1
+    
+    if request.brain_region:
+        sql += f" AND brain_region ILIKE ${param_idx}"
+        params.append(f"%{request.brain_region}%")
+        param_idx += 1
+    
+    if request.sex:
+        sql += f" AND donor_sex ILIKE ${param_idx}"
+        params.append(request.sex)
+        param_idx += 1
+    
+    if request.min_age is not None:
+        sql += f" AND donor_age >= ${param_idx}"
+        params.append(request.min_age)
+        param_idx += 1
+    
+    if request.max_age is not None:
+        sql += f" AND donor_age <= ${param_idx}"
+        params.append(request.max_age)
+        param_idx += 1
+    
+    if request.min_rin is not None:
+        sql += f" AND rin_score >= ${param_idx}"
+        params.append(request.min_rin)
+        param_idx += 1
+    
+    if request.max_pmi is not None:
+        sql += f" AND postmortem_interval_hours <= ${param_idx}"
+        params.append(request.max_pmi)
+        param_idx += 1
+    
+    # Order by similarity and limit
+    sql += f" ORDER BY embedding <=> $1::vector LIMIT ${param_idx}"
+    params.append(request.limit)
+    
+    # Execute using raw asyncpg connection
+    conn = await db.connection()
+    raw_conn = await conn.get_raw_connection()
+    asyncpg_conn = raw_conn.driver_connection
+    
+    rows = await asyncpg_conn.fetch(sql, *params)
+    
+    # Build response
+    results = []
+    for row in rows:
+        sample = SampleResponse(
+            id=row["id"],
+            source_bank=row["source_bank"],
+            external_id=row["external_id"],
+            source_url=row["source_url"],
+            donor_age=row["donor_age"],
+            donor_age_range=row["donor_age_range"],
+            donor_sex=row["donor_sex"],
+            donor_race=row["donor_race"],
+            donor_ethnicity=row["donor_ethnicity"],
+            primary_diagnosis=row["primary_diagnosis"],
+            primary_diagnosis_code=row["primary_diagnosis_code"],
+            secondary_diagnoses=row["secondary_diagnoses"],
+            cause_of_death=row["cause_of_death"],
+            manner_of_death=row["manner_of_death"],
+            brain_region=row["brain_region"],
+            brain_region_code=row["brain_region_code"],
+            tissue_type=row["tissue_type"],
+            hemisphere=row["hemisphere"],
+            preservation_method=row["preservation_method"],
+            postmortem_interval_hours=row["postmortem_interval_hours"],
+            ph_level=row["ph_level"],
+            rin_score=row["rin_score"],
+            quality_metrics=row["quality_metrics"],
+            quantity_available=row["quantity_available"],
+            is_available=row["is_available"],
+            raw_data=row["raw_data"],
+            extended_data=row["extended_data"],
+        )
+        
+        results.append(SemanticSearchResult(
+            sample=sample,
+            score=max(0.0, min(1.0, row["similarity"]))
+        ))
+    
+    return SemanticSearchResponse(
+        query=request.query,
+        results=results,
+        total=len(results),
     )
 
