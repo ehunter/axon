@@ -6,13 +6,13 @@ This module provides the retrieval-augmented generation pipeline that:
 3. Generates responses using Claude
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from anthropic import AsyncAnthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from axon.db.models import Sample
+from axon.db.models import Sample, KnowledgeChunk, KnowledgeDocument
 from axon.rag.embeddings import EmbeddingService
 
 
@@ -25,12 +25,24 @@ class RetrievedSample:
 
 
 @dataclass
+class RetrievedKnowledge:
+    """A retrieved knowledge chunk with relevance score."""
+    
+    chunk: KnowledgeChunk
+    document_title: str | None
+    document_url: str
+    source_name: str
+    score: float
+
+
+@dataclass
 class RAGResponse:
     """Response from the RAG pipeline."""
     
     answer: str
     sources: list[Sample]
-    query: str
+    knowledge_sources: list[RetrievedKnowledge] = field(default_factory=list)
+    query: str = ""
 
 
 class ContextBuilder:
@@ -146,20 +158,57 @@ Always base your responses on the actual sample data provided to you. If no rele
         """Build the system prompt for the LLM."""
         return self.SYSTEM_PROMPT
     
+    def format_knowledge(self, knowledge: list[RetrievedKnowledge]) -> str:
+        """Format knowledge chunks for LLM context."""
+        if not knowledge:
+            return ""
+        
+        formatted = []
+        for i, k in enumerate(knowledge, 1):
+            header = f"### Reference {i}"
+            if k.score:
+                header += f" (relevance: {k.score:.0%})"
+            
+            formatted.append(header)
+            formatted.append(f"**Source:** {k.source_name}")
+            if k.document_title:
+                formatted.append(f"**Document:** {k.document_title}")
+            if k.chunk.section_title:
+                formatted.append(f"**Section:** {k.chunk.section_title}")
+            formatted.append("")
+            formatted.append(k.chunk.content)
+            formatted.append("")
+        
+        return "\n".join(formatted)
+    
     def build_context(
         self,
         query: str,
         samples: list[Sample],
         scores: list[float] | None = None,
+        knowledge: list[RetrievedKnowledge] | None = None,
     ) -> str:
         """Build the full context message for the LLM."""
-        context_parts = [
+        context_parts = []
+        
+        # Add knowledge base context first (educational background)
+        if knowledge:
+            context_parts.extend([
+                "## Reference Information",
+                "",
+                "The following reference information may be relevant to the query:",
+                "",
+                self.format_knowledge(knowledge),
+            ])
+        
+        # Add sample context
+        context_parts.extend([
             "## Available Brain Tissue Samples",
             "",
             f"Based on your query, I found {len(samples)} relevant sample(s):",
             "",
             self.format_samples(samples, scores),
-        ]
+        ])
         
         return "\n".join(context_parts)
 
@@ -315,6 +364,107 @@ class RAGRetriever:
             results.append(RetrievedSample(sample=sample, score=score))
         
         return results
+    
+    async def retrieve_knowledge(
+        self,
+        query: str,
+        limit: int = 5,
+        source_name: str | None = None,
+        content_type: str | None = None,
+    ) -> list[RetrievedKnowledge]:
+        """Retrieve knowledge chunks relevant to the query.
+        
+        Args:
+            query: Natural language query
+            limit: Maximum number of chunks to retrieve
+            source_name: Filter by source (e.g., "NIH NeuroBioBank")
+            content_type: Filter by content type (e.g., "best_practices")
+            
+        Returns:
+            List of retrieved knowledge chunks with scores
+        """
+        # Generate query embedding
+        query_embedding = await self.embedding_service.embed_query(query)
+        
+        return await self._search_knowledge(
+            query_embedding=query_embedding,
+            limit=limit,
+            source_name=source_name,
+            content_type=content_type,
+        )
+    
+    async def _search_knowledge(
+        self,
+        query_embedding: list[float],
+        limit: int,
+        source_name: str | None = None,
+        content_type: str | None = None,
+    ) -> list[RetrievedKnowledge]:
+        """Search for knowledge chunks using vector similarity."""
+        embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
+        
+        # Build SQL query with JOIN to get document info
+        sql = """
+            SELECT 
+                kc.id, kc.document_id, kc.chunk_index, kc.content,
+                kc.section_title, kc.heading_hierarchy, kc.token_count,
+                kd.url, kd.title, kd.source_name, kd.content_type,
+                1 - (kc.embedding <=> $1::vector) as similarity
+            FROM knowledge_chunks kc
+            JOIN knowledge_documents kd ON kc.document_id = kd.id
+            WHERE kc.embedding IS NOT NULL
+        """
+        
+        params = [embedding_str]
+        param_idx = 2
+        
+        if source_name:
+            sql += f" AND kd.source_name = ${param_idx}"
+            params.append(source_name)
+            param_idx += 1
+        
+        if content_type:
+            sql += f" AND kd.content_type = ${param_idx}"
+            params.append(content_type)
+            param_idx += 1
+        
+        sql += f" ORDER BY kc.embedding <=> $1::vector LIMIT ${param_idx}"
+        params.append(limit)
+        
+        # Execute using raw asyncpg connection
+        conn = await self.db_session.connection()
+        raw_conn = await conn.get_raw_connection()
+        asyncpg_conn = raw_conn.driver_connection
+        
+        try:
+            rows = await asyncpg_conn.fetch(sql, *params)
+        except Exception:
+            # Table might not exist yet
+            return []
+        
+        # Convert to RetrievedKnowledge objects
+        results = []
+        for row in rows:
+            chunk = KnowledgeChunk(
+                id=row["id"],
+                document_id=row["document_id"],
+                chunk_index=row["chunk_index"],
+                content=row["content"],
+                section_title=row["section_title"],
+                heading_hierarchy=row["heading_hierarchy"],
+                token_count=row["token_count"],
+            )
+            
+            score = max(0.0, min(1.0, row["similarity"]))
+            results.append(RetrievedKnowledge(
+                chunk=chunk,
+                document_title=row["title"],
+                document_url=row["url"],
+                source_name=row["source_name"],
+                score=score,
+            ))
+        
+        return results
 
 
 class RAGPipeline:
@@ -344,7 +494,9 @@ class RAGPipeline:
         self,
         query: str,
         limit: int = 10,
+        knowledge_limit: int = 3,
         max_tokens: int = 1024,
+        include_knowledge: bool = True,
         **filters,
     ) -> RAGResponse:
         """Process a query through the RAG pipeline.
@@ -352,7 +504,9 @@ class RAGPipeline:
         Args:
             query: User's natural language query
             limit: Maximum samples to retrieve
+            knowledge_limit: Maximum knowledge chunks to retrieve
             max_tokens: Maximum tokens in response
+            include_knowledge: Whether to include knowledge base results
             **filters: Additional filters for retrieval
             
         Returns:
@@ -368,11 +522,20 @@ class RAGPipeline:
         samples = [r.sample for r in retrieved]
         scores = [r.score for r in retrieved]
         
+        # Retrieve relevant knowledge chunks
+        knowledge = []
+        if include_knowledge:
+            knowledge = await self.retriever.retrieve_knowledge(
+                query=query,
+                limit=knowledge_limit,
+            )
+        
         # Build context
         context = self.context_builder.build_context(
             query=query,
             samples=samples,
             scores=scores,
+            knowledge=knowledge,
         )
         
         # Generate response with Claude
@@ -393,6 +556,7 @@ class RAGPipeline:
         return RAGResponse(
             answer=answer,
             sources=samples,
+            knowledge_sources=knowledge,
             query=query,
         )
 
