@@ -3,6 +3,7 @@
 import typer
 
 from axon.cli.commands.ingest import app as ingest_app
+from axon.cli.commands.embeddings import app as embeddings_app
 
 app = typer.Typer(
     name="axon",
@@ -12,6 +13,7 @@ app = typer.Typer(
 
 # Register command groups
 app.add_typer(ingest_app, name="import", help="Import data from brain banks")
+app.add_typer(embeddings_app, name="embeddings", help="Generate and manage embeddings")
 
 
 @app.command()

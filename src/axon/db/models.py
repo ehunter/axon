@@ -22,6 +22,13 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+try:
+    from pgvector.sqlalchemy import Vector
+    HAS_PGVECTOR = True
+except ImportError:
+    HAS_PGVECTOR = False
+    Vector = None  # type: ignore
+
 
 class Base(DeclarativeBase):
     """Base class for all models."""
@@ -146,15 +153,17 @@ class Sample(Base):
 
     # Computed fields
     searchable_text: Mapped[str | None] = mapped_column(Text)
+    
+    # Vector embedding for semantic search (1536 dimensions for text-embedding-3-small)
+    # Only available when using PostgreSQL with pgvector extension
+    if HAS_PGVECTOR:
+        embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
 
     # Metadata
     imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-
-    # Note: embedding vector column would be added via Alembic migration
-    # when using PostgreSQL with pgvector extension
 
 
 class Conversation(Base):
@@ -260,9 +269,11 @@ class PaperChunk(Base):
     section_title: Mapped[str | None] = mapped_column(String(500))
     page_number: Mapped[int | None] = mapped_column(Integer)
 
+    # Vector embedding for semantic search
+    if HAS_PGVECTOR:
+        embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
     paper: Mapped["Paper"] = relationship("Paper", back_populates="chunks")
-
-    # Note: embedding vector column would be added via Alembic migration
