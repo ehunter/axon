@@ -100,6 +100,60 @@ class EmbeddingService:
             if secondary:
                 parts.append(f"Secondary diagnoses: {secondary}")
         
+        # Neuropathology scores (from extended_data)
+        if sample.extended_data:
+            neuropath = sample.extended_data.get("neuropathology_scores", {})
+            if neuropath:
+                scores = []
+                
+                # Braak NFT staging (Alzheimer's)
+                braak_nft = neuropath.get("braak_nft_stage")
+                if braak_nft and braak_nft not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Braak NFT {braak_nft}")
+                
+                # Thal amyloid phase
+                thal = neuropath.get("thal_phase")
+                if thal and thal not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Thal {thal}")
+                
+                # CERAD score
+                cerad = neuropath.get("cerad_score")
+                if cerad and cerad not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"CERAD {cerad}")
+                
+                # ADNC (AD Neuropathologic Change)
+                adnc = neuropath.get("adnc")
+                if adnc and adnc not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"ADNC {adnc}")
+                
+                # Braak PD staging (Parkinson's)
+                braak_pd = neuropath.get("braak_pd_stage")
+                if braak_pd and braak_pd not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Braak PD {braak_pd}")
+                
+                # Lewy body pathology
+                lewy = neuropath.get("lewy_pathology")
+                if lewy and lewy not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Lewy pathology: {lewy}")
+                
+                # TDP-43 pathology
+                tdp43 = neuropath.get("tdp43_proteinopathy")
+                if tdp43 and tdp43 not in ("Not Assessed", "No Results Reported", "No"):
+                    scores.append(f"TDP-43: {tdp43}")
+                
+                # CAA (Cerebral amyloid angiopathy)
+                caa = neuropath.get("caa_severity")
+                if caa and caa not in ("Not Assessed", "No Results Reported", "Grade 0"):
+                    scores.append(f"CAA {caa}")
+                
+                if scores:
+                    parts.append(f"Neuropathology: {', '.join(scores)}")
+            
+            # Neuropathology diagnosis
+            neuropath_dx = sample.extended_data.get("neuropathology_diagnosis")
+            if neuropath_dx and neuropath_dx not in ("Coding Pending", "Diagnostic pathology not present"):
+                parts.append(f"Neuropathology diagnosis: {neuropath_dx}")
+        
         # Brain regions
         if sample.brain_region:
             parts.append(f"Brain regions: {sample.brain_region}")

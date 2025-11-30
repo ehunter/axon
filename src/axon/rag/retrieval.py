@@ -56,6 +56,43 @@ Always base your responses on the actual sample data provided to you. If no rele
         if sample.primary_diagnosis:
             parts.append(f"**Diagnosis:** {sample.primary_diagnosis}")
         
+        # Neuropathology scores
+        if sample.extended_data:
+            neuropath = sample.extended_data.get("neuropathology_scores", {})
+            if neuropath:
+                scores = []
+                
+                braak_nft = neuropath.get("braak_nft_stage")
+                if braak_nft and braak_nft not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Braak NFT: {braak_nft}")
+                
+                thal = neuropath.get("thal_phase")
+                if thal and thal not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Thal: {thal}")
+                
+                cerad = neuropath.get("cerad_score")
+                if cerad and cerad not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"CERAD: {cerad}")
+                
+                adnc = neuropath.get("adnc")
+                if adnc and adnc not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"ADNC: {adnc}")
+                
+                braak_pd = neuropath.get("braak_pd_stage")
+                if braak_pd and braak_pd not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Braak PD: {braak_pd}")
+                
+                lewy = neuropath.get("lewy_pathology")
+                if lewy and lewy not in ("Not Assessed", "No Results Reported"):
+                    scores.append(f"Lewy: {lewy}")
+                
+                if scores:
+                    parts.append(f"**Neuropathology:** {'; '.join(scores)}")
+            
+            neuropath_dx = sample.extended_data.get("neuropathology_diagnosis")
+            if neuropath_dx and neuropath_dx not in ("Coding Pending", "Diagnostic pathology not present"):
+                parts.append(f"**Neuropath Dx:** {neuropath_dx}")
+        
         if sample.brain_region:
             # Truncate very long brain region lists
             regions = sample.brain_region
