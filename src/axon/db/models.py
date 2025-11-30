@@ -277,3 +277,77 @@ class PaperChunk(Base):
 
     # Relationships
     paper: Mapped["Paper"] = relationship("Paper", back_populates="chunks")
+
+
+class KnowledgeDocument(Base):
+    """Web-scraped documents for the knowledge base."""
+
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    
+    # Source information
+    url: Mapped[str] = mapped_column(String(2000), nullable=False, unique=True)
+    title: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    
+    # Content
+    markdown_content: Mapped[str | None] = mapped_column(Text)
+    html_content: Mapped[str | None] = mapped_column(Text)
+    
+    # Categorization
+    source_name: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "NIH NeuroBioBank"
+    content_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "best_practices", "definitions"
+    tags: Mapped[list[str] | None] = mapped_column(JSON)
+    
+    # Metadata
+    last_scraped_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    scrape_status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, success, error
+    processing_status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, chunked, embedded
+    
+    # Firecrawl metadata
+    scrape_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    chunks: Mapped[list["KnowledgeChunk"]] = relationship(
+        "KnowledgeChunk", back_populates="document", cascade="all, delete-orphan"
+    )
+
+
+class KnowledgeChunk(Base):
+    """Chunked knowledge document content for RAG."""
+
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    document_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False
+    )
+
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Chunk metadata
+    section_title: Mapped[str | None] = mapped_column(String(500))
+    heading_hierarchy: Mapped[list[str] | None] = mapped_column(JSON)  # e.g., ["Best Practices", "Brain Collection"]
+    
+    # Token count for context management
+    token_count: Mapped[int | None] = mapped_column(Integer)
+
+    # Vector embedding for semantic search
+    if HAS_PGVECTOR:
+        embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    document: Mapped["KnowledgeDocument"] = relationship("KnowledgeDocument", back_populates="chunks")

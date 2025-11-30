@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # AI Services
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    firecrawl_api_key: str = ""
 
     # Application
     env: str = "development"
