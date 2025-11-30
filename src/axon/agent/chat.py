@@ -8,6 +8,14 @@ from anthropic import AsyncAnthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from axon.agent.prompts import SYSTEM_PROMPT, EDUCATIONAL_TOPICS
+from axon.agent.database_queries import (
+    get_race_breakdown_detailed,
+    get_diagnosis_breakdown,
+    get_sample_count_by_source,
+    get_sample_count_by_sex,
+    count_samples_with_filter,
+    get_total_sample_count,
+)
 from axon.db.models import Sample
 from axon.rag.retrieval import ContextBuilder, RAGRetriever, RetrievedSample
 
@@ -78,6 +86,7 @@ class ChatAgent:
             anthropic_api_key: Anthropic API key for Claude
             model: Claude model to use
         """
+        self.db_session = db_session
         self.retriever = RAGRetriever(db_session, embedding_api_key)
         self.context_builder = ContextBuilder()
         self.client = AsyncAnthropic(api_key=anthropic_api_key)
@@ -113,9 +122,12 @@ class ChatAgent:
         # Add user message to history
         self.conversation.add_message("user", message)
         
-        # Retrieve relevant samples if needed
+        # Check if this is an aggregate/statistics question
+        stats_context = await self._get_stats_context(message)
+        
+        # Retrieve relevant samples if needed (and not a stats question)
         retrieved: list[RetrievedSample] = []
-        if retrieve_samples and self._should_retrieve(message):
+        if retrieve_samples and self._should_retrieve(message) and not stats_context:
             retrieved = await self.retriever.retrieve(
                 query=message,
                 limit=num_samples,
@@ -128,8 +140,10 @@ class ChatAgent:
         # Build messages for Claude
         messages = self.conversation.get_history_for_llm()
         
-        # Add context about retrieved samples to the last user message
-        if samples:
+        # Add context about retrieved samples or stats to the last user message
+        if stats_context:
+            messages[-1]["content"] = f"{stats_context}\n\n---\n\n**User Query:** {message}"
+        elif samples:
             context = self.context_builder.build_context(
                 query=message,
                 samples=samples,
@@ -141,6 +155,82 @@ class ChatAgent:
             return self._stream_response(messages, samples)
         else:
             return await self._get_response(messages, samples)
+    
+    async def _get_stats_context(self, message: str) -> str | None:
+        """Check if message is asking for statistics and return context if so."""
+        message_lower = message.lower()
+        
+        # Keywords indicating aggregate/count questions
+        count_keywords = [
+            "how many", "total number", "count", "breakdown", 
+            "statistics", "summary", "available", "do you have"
+        ]
+        
+        is_stats_question = any(kw in message_lower for kw in count_keywords)
+        
+        if not is_stats_question:
+            return None
+        
+        context_parts = ["## Database Statistics\n"]
+        
+        # Check for race-related questions
+        race_keywords = ["race", "african", "black", "white", "asian", "hispanic", "ethnicity"]
+        if any(kw in message_lower for kw in race_keywords):
+            race_stats = await get_race_breakdown_detailed(self.db_session)
+            context_parts.append(race_stats)
+        
+        # Check for sex-related questions
+        elif any(kw in message_lower for kw in ["male", "female", "sex", "gender"]):
+            sex_counts = await get_sample_count_by_sex(self.db_session)
+            total = sum(sex_counts.values())
+            lines = ["**Sample Counts by Sex:**\n"]
+            for sex, count in sorted(sex_counts.items(), key=lambda x: -x[1]):
+                pct = (count / total) * 100 if total > 0 else 0
+                lines.append(f"- {sex}: **{count:,}** ({pct:.1f}%)")
+            context_parts.append("\n".join(lines))
+        
+        # Check for source-related questions
+        elif any(kw in message_lower for kw in ["source", "bank", "institution", "nih", "harvard", "sinai"]):
+            source_counts = await get_sample_count_by_source(self.db_session)
+            total = sum(source_counts.values())
+            lines = ["**Sample Counts by Source Bank:**\n"]
+            for source, count in sorted(source_counts.items(), key=lambda x: -x[1]):
+                pct = (count / total) * 100 if total > 0 else 0
+                lines.append(f"- {source}: **{count:,}** ({pct:.1f}%)")
+            context_parts.append("\n".join(lines))
+        
+        # Check for diagnosis-related questions
+        elif any(kw in message_lower for kw in ["diagnosis", "disease", "alzheimer", "parkinson", "als", "schizophrenia"]):
+            # Extract specific diagnosis if mentioned
+            diagnosis_terms = {
+                "alzheimer": "Alzheimer",
+                "parkinson": "Parkinson",
+                "als": "ALS",
+                "amyotrophic": "ALS",
+                "huntington": "Huntington",
+                "schizophrenia": "schizophrenia",
+                "multiple sclerosis": "Multiple sclerosis",
+                "ms ": "Multiple sclerosis",
+            }
+            search_term = None
+            for term, search in diagnosis_terms.items():
+                if term in message_lower:
+                    search_term = search
+                    break
+            
+            if search_term:
+                count = await count_samples_with_filter(self.db_session, diagnosis=search_term)
+                context_parts.append(f"**Samples matching '{search_term}':** {count:,}")
+            else:
+                diag_stats = await get_diagnosis_breakdown(self.db_session)
+                context_parts.append(diag_stats)
+        
+        # General total count
+        else:
+            total = await get_total_sample_count(self.db_session)
+            context_parts.append(f"**Total samples in database:** {total:,}")
+        
+        return "\n\n".join(context_parts)
     
     def _should_retrieve(self, message: str) -> bool:
         """Determine if we should retrieve samples for this message."""
