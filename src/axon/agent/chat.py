@@ -7,6 +7,7 @@ from typing import AsyncGenerator
 from anthropic import AsyncAnthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from axon.agent.prompts import SYSTEM_PROMPT, EDUCATIONAL_TOPICS
 from axon.db.models import Sample
 from axon.rag.retrieval import ContextBuilder, RAGRetriever, RetrievedSample
 
@@ -52,37 +53,15 @@ class ChatAgent:
     
     Maintains conversation history and uses RAG to provide
     informed responses about brain tissue samples.
-    """
     
-    SYSTEM_PROMPT = """You are Axon, an expert brain bank research assistant. Your role is to help neuroscience researchers find the most suitable brain tissue samples for their research.
-
-You have access to a database of 17,870 brain tissue samples from multiple brain banks:
-- NIH sites: Miami, Maryland, Pittsburgh, Sepulveda, HBCC, Maryland Psychiatric, ADRC
-- Harvard Brain Tissue Resource Center  
-- Mt. Sinai Brain Bank
-
-**Your capabilities:**
-1. Search for samples by diagnosis (Alzheimer's, Parkinson's, ALS, MS, schizophrenia, etc.)
-2. Filter by brain region (hippocampus, frontal cortex, substantia nigra, etc.)
-3. Filter by quality metrics (RIN score, postmortem interval)
-4. Filter by demographics (age, sex)
-5. Provide information about sample availability and source institutions
-
-**Guidelines:**
-- Be precise and scientific in your language
-- When presenting samples, highlight key characteristics (diagnosis, brain region, RIN score, PMI)
-- Note any limitations or caveats
-- If the query is vague, ask clarifying questions
-- Always mention the source brain bank for each sample
-- If no relevant samples are found, suggest alternative search criteria
-
-**Response format:**
-- Keep responses concise but informative
-- Use bullet points for listing multiple samples
-- Include sample IDs when referencing specific samples
-- Offer to provide more details or refine the search
-
-Remember: You're helping researchers find valuable tissue samples for important neuroscience research."""
+    The agent follows a guided workflow to help researchers find
+    optimal samples, asking clarifying questions about:
+    - Disease criteria and subtypes
+    - Pathology requirements (Braak, Thal, etc.)
+    - Technical requirements (RIN, PMI, brain region)
+    - Matching criteria for controls
+    - Exclusion criteria
+    """
 
     def __init__(
         self,
@@ -185,8 +164,8 @@ Remember: You're helping researchers find valuable tissue samples for important 
         """Get a complete response from Claude."""
         response = await self.client.messages.create(
             model=self.model,
-            max_tokens=1500,
-            system=self.SYSTEM_PROMPT,
+            max_tokens=2000,
+            system=SYSTEM_PROMPT,
             messages=messages,
         )
         
@@ -207,8 +186,8 @@ Remember: You're helping researchers find valuable tissue samples for important 
         
         async with self.client.messages.stream(
             model=self.model,
-            max_tokens=1500,
-            system=self.SYSTEM_PROMPT,
+            max_tokens=2000,
+            system=SYSTEM_PROMPT,
             messages=messages,
         ) as stream:
             async for text in stream.text_stream:
