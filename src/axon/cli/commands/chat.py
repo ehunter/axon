@@ -9,6 +9,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.theme import Theme
+from rich.status import Status
 
 from axon.config import get_settings
 
@@ -23,6 +24,7 @@ console = Console(theme=Theme({
 @app.command("start")
 def start_chat(
     use_tools: bool = typer.Option(True, help="Use tool-based agent (prevents hallucination)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logging"),
 ):
     """Start an interactive chat session with Axon.
     
@@ -31,6 +33,13 @@ def start_chat(
     Type 'new' to start a fresh conversation.
     Type 'selection' to see current sample selection.
     """
+    import logging
+    
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger("axon").setLevel(logging.DEBUG)
+        logging.getLogger("httpx").setLevel(logging.WARNING)  # Reduce HTTP noise
+    
     settings = get_settings()
     
     if not settings.anthropic_api_key:
@@ -107,9 +116,15 @@ async def _chat_loop(
                 
                 # Get response from agent (tool-based, always complete response)
                 console.print()
-                console.print("[assistant]Axon[/assistant]\n")
                 
-                response = await agent.chat(user_input)
+                with Status("[dim]Thinking...[/dim]", spinner="dots", console=console) as status:
+                    try:
+                        response = await agent.chat(user_input)
+                    except Exception as e:
+                        console.print(f"[red]Error getting response: {e}[/red]\n")
+                        continue
+                
+                console.print("[assistant]Axon[/assistant]\n")
                 console.print(Markdown(response))
                 console.print()
                 
