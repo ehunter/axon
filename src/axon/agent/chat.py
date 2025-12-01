@@ -101,6 +101,10 @@ class ChatAgent:
         # Sample matching
         self.matching_service = MatchingService(db_session)
         self.matching_criteria = MatchingCriteria()
+        
+        # Store last match result for follow-up questions
+        self.last_match_result = None
+        self.last_search_context = None
     
     def new_conversation(self) -> None:
         """Start a new conversation."""
@@ -109,6 +113,8 @@ class ChatAgent:
         )
         # Reset matching criteria for new conversation
         self.matching_criteria = MatchingCriteria()
+        self.last_match_result = None
+        self.last_search_context = None
     
     async def run_matching(self) -> str:
         """Run the matching algorithm with current criteria.
@@ -208,6 +214,17 @@ class ChatAgent:
         # Check if this is an aggregate/statistics question
         stats_context = await self._get_stats_context(message)
         
+        # Check if user is asking to see details of already-found samples
+        if self._is_asking_for_details(message) and self.last_search_context:
+            # Return the stored search results
+            messages = self.conversation.get_history_for_llm()
+            messages[-1]["content"] = f"{self.last_search_context}\n\n---\n\n**User Query:** {message}\n\n(The user is asking to see the detailed sample list from the previous search results above.)"
+            
+            if stream:
+                return self._stream_response(messages, [])
+            else:
+                return await self._get_response(messages, [])
+        
         # Check if agent announced a search and user is confirming
         search_context = None
         if self._agent_announced_search() and self._is_confirmation(message):
@@ -283,6 +300,25 @@ class ChatAgent:
             "perfect", "great", "good", "fine", "that's fine",
         }
         return message.lower().strip().rstrip('!.,') in confirmations
+    
+    def _is_asking_for_details(self, message: str) -> bool:
+        """Check if user is asking to see details of already-found samples."""
+        message_lower = message.lower().strip()
+        
+        detail_patterns = [
+            "detailed list", "detail list", "sample list", "the list",
+            "show me the samples", "show the samples", "see the samples",
+            "show me the list", "show the list", "see the list",
+            "can i see the", "could i see the", "may i see the",
+            "what are the sample ids", "sample ids", "sample id",
+            "what are the ids", "list the samples", "list the ids",
+            "full list", "complete list", "all the samples",
+            "show me all", "show all", "see all",
+            "what samples", "which samples", "the samples",
+            "details", "specifics", "individual samples",
+        ]
+        
+        return any(pattern in message_lower for pattern in detail_patterns)
     
     def _build_search_query(self, message: str) -> str:
         """Build a search query from conversation context.
@@ -378,7 +414,9 @@ class ChatAgent:
         if not cases:
             context_parts.append("\n**No cases found matching all criteria.**\n")
             context_parts.append("Consider relaxing some constraints.\n")
-            return "\n".join(context_parts)
+            result = "\n".join(context_parts)
+            self.last_search_context = result
+            return result
         
         # Find control candidates if needed
         controls = []
@@ -485,7 +523,19 @@ class ChatAgent:
                     f"{i}. **{case.external_id}** - Age: {case.age}, Sex: {case.sex}\n"
                 )
         
-        return "\n".join(context_parts)
+        # Store the search context for follow-up questions
+        result = "\n".join(context_parts)
+        self.last_search_context = result
+        
+        # Also store the match result if we have one
+        if cases and controls:
+            self.last_match_result = {
+                "cases": cases,
+                "controls": controls,
+                "criteria": criteria,
+            }
+        
+        return result
     
     async def _extract_criteria_from_conversation(self) -> dict | None:
         """Use Claude to extract search criteria from the conversation."""
