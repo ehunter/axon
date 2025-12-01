@@ -195,6 +195,12 @@ class SelectedSample:
     brain_region: str | None
     source_bank: str | None
     braak_stage: str | None
+    copathologies: str | None = None
+    
+    @property
+    def repository(self) -> str | None:
+        """Alias for source_bank for export compatibility."""
+        return self.source_bank
 
 
 @dataclass
@@ -475,6 +481,7 @@ class ToolHandler:
             brain_region=sample.brain_region,
             source_bank=sample.source_bank,
             braak_stage=self._extract_braak(sample),
+            copathologies=self._extract_copathologies(sample),
         )
         
         if group == "cases":
