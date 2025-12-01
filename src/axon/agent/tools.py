@@ -333,6 +333,7 @@ class ToolHandler:
             rin_str = f"{float(s.rin_score):.1f}" if s.rin_score else "N/A"
             pmi_str = f"{float(s.postmortem_interval_hours):.1f}h" if s.postmortem_interval_hours else "N/A"
             braak = self._extract_braak(s)
+            copathologies = self._extract_copathologies(s)
             
             lines.append(f"{i}. **{s.external_id}**")
             lines.append(f"   - Repository: {s.source_bank or 'N/A'}")
@@ -341,6 +342,7 @@ class ToolHandler:
             lines.append(f"   - RIN: {rin_str}, PMI: {pmi_str}")
             if braak:
                 lines.append(f"   - Braak Stage: {braak}")
+            lines.append(f"   - Co-pathologies: {copathologies}")
             lines.append(f"   - Brain Region: {s.brain_region or 'N/A'}")
             lines.append("")
         
@@ -457,6 +459,7 @@ class ToolHandler:
         rin_str = f"{float(sample.rin_score):.1f}" if sample.rin_score else "Not available"
         pmi_str = f"{float(sample.postmortem_interval_hours):.1f}h" if sample.postmortem_interval_hours else "Not available"
         braak = self._extract_braak(sample) or "Not available"
+        copathologies = self._extract_copathologies(sample)
         
         lines = [
             f"## Sample Details: {sample.external_id}\n",
@@ -469,6 +472,7 @@ class ToolHandler:
             f"- **PMI:** {pmi_str}",
             f"- **Brain Region:** {sample.brain_region or 'Not available'}",
             f"- **Braak Stage:** {braak}",
+            f"- **Co-pathologies:** {copathologies}",
         ]
         
         return "\n".join(lines)
@@ -546,4 +550,41 @@ class ToolHandler:
         if sample.extended_data:
             return sample.extended_data.get("braak_stage") or sample.extended_data.get("braak")
         return None
+    
+    def _extract_copathologies(self, sample: Sample) -> str:
+        """Extract co-pathology information from extended_data."""
+        if not sample.extended_data:
+            return "Not recorded"
+        
+        copaths = []
+        ext = sample.extended_data
+        
+        # Check for TDP-43
+        tdp43 = ext.get("tdp43") or ext.get("tdp_43") or ext.get("tdp43_pathology")
+        if tdp43 and str(tdp43).lower() not in ("none", "no", "negative", "0", ""):
+            copaths.append(f"TDP-43: {tdp43}")
+        
+        # Check for synucleinopathy / Lewy bodies
+        syn = ext.get("synucleinopathy") or ext.get("lewy_bodies") or ext.get("alpha_synuclein")
+        if syn and str(syn).lower() not in ("none", "no", "negative", "0", ""):
+            copaths.append(f"Synucleinopathy: {syn}")
+        
+        # Check for CAA (Cerebral Amyloid Angiopathy)
+        caa = ext.get("caa") or ext.get("cerebral_amyloid_angiopathy")
+        if caa and str(caa).lower() not in ("none", "no", "negative", "0", ""):
+            copaths.append(f"CAA: {caa}")
+        
+        # Check for vascular pathology
+        vasc = ext.get("vascular_pathology") or ext.get("vascular")
+        if vasc and str(vasc).lower() not in ("none", "no", "negative", "0", ""):
+            copaths.append(f"Vascular: {vasc}")
+        
+        # Check for Thal phase (amyloid)
+        thal = ext.get("thal_phase") or ext.get("thal")
+        if thal:
+            copaths.append(f"Thal: {thal}")
+        
+        if copaths:
+            return ", ".join(copaths)
+        return "None noted"
 
