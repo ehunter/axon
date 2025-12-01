@@ -1149,10 +1149,107 @@ JSON:"""
                 )
                 answer = response.content[0].text
         
+        # CRITICAL: Validate any sample IDs in the response actually exist
+        if self._response_presents_samples(answer):
+            is_valid, invalid_ids = await self._validate_sample_ids_in_response(answer)
+            
+            if not is_valid:
+                # Claude fabricated sample IDs - this is unacceptable
+                # Do a fresh search and force regeneration with strict warning
+                search_context = await self._do_criteria_based_search(20)
+                
+                if search_context:
+                    strict_warning = f"""
+
+{search_context}
+
+⚠️ CRITICAL WARNING ⚠️
+Your previous response contained FABRICATED sample IDs that do not exist in the database: {invalid_ids}
+This is UNACCEPTABLE. You MUST ONLY use the EXACT sample IDs listed above.
+
+DO NOT:
+- Invent IDs like "6711", "6709", "C1024"
+- Make up RIN scores, ages, or Braak stages
+- Create fictional statistics
+
+ONLY present samples with the EXACT IDs shown in the search results above.
+If there are not enough samples, say so honestly.
+"""
+                    messages[-1]["content"] = messages[-1]["content"] + strict_warning
+                    
+                    response = await self.client.messages.create(
+                        model=self.model,
+                        max_tokens=2000,
+                        system=SYSTEM_PROMPT,
+                        messages=messages,
+                    )
+                    answer = response.content[0].text
+        
         # Add assistant response to history
         self.conversation.add_message("assistant", answer, samples)
         
         return answer
+    
+    async def _validate_sample_ids_in_response(self, response: str) -> tuple[bool, list[str]]:
+        """Check if sample IDs mentioned in response actually exist in database.
+        
+        Returns:
+            Tuple of (is_valid, list_of_invalid_ids)
+        """
+        import re
+        
+        # Extract potential sample IDs from response (patterns like **ID**, #ID, ID:, etc.)
+        # Common patterns: **6711**, **BEB19072**, **HCT16HDU**, etc.
+        id_patterns = [
+            r'\*\*([A-Z0-9]{4,})\*\*',  # **ID** format
+            r'#([A-Z0-9]{4,})',  # #ID format
+            r'\b([A-Z]{2,}[0-9]{4,})\b',  # BEB19072 format
+            r'\b([0-9]{4,})\b(?=.*(?:RIN|PMI|Braak|age|female|male))',  # Numeric IDs near sample attributes
+        ]
+        
+        found_ids = set()
+        for pattern in id_patterns:
+            matches = re.findall(pattern, response, re.IGNORECASE)
+            found_ids.update(matches)
+        
+        # Filter out common false positives
+        false_positives = {'2000', '2024', '2025', 'RNA', 'RIN', 'PMI', 'HBCC', 'ADRC'}
+        found_ids = {id for id in found_ids if id.upper() not in false_positives and len(id) >= 4}
+        
+        if not found_ids:
+            return True, []  # No IDs found, nothing to validate
+        
+        # Check which IDs exist in the database
+        from sqlalchemy import select, or_
+        from axon.db.models import Sample
+        
+        # Query for existing IDs
+        query = select(Sample.external_id).where(
+            or_(
+                Sample.external_id.in_(found_ids),
+                Sample.id.in_(found_ids),
+            )
+        )
+        
+        result = await self.db_session.execute(query)
+        existing_ids = {row[0] for row in result.fetchall()}
+        
+        # Also check if any found_ids are substrings of existing IDs
+        all_samples_query = select(Sample.external_id).limit(1000)
+        all_result = await self.db_session.execute(all_samples_query)
+        all_external_ids = {row[0] for row in all_result.fetchall() if row[0]}
+        
+        # Find invalid IDs
+        invalid_ids = []
+        for found_id in found_ids:
+            # Check if this ID exists or is part of an existing ID
+            if found_id not in existing_ids:
+                # Check if it might be a partial match
+                is_partial_match = any(found_id in ext_id or ext_id in found_id for ext_id in all_external_ids)
+                if not is_partial_match:
+                    invalid_ids.append(found_id)
+        
+        return len(invalid_ids) == 0, invalid_ids
     
     def _response_indicates_search_ready(self, response: str) -> bool:
         """Check if Claude's response indicates it's ready to search."""
