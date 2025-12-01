@@ -367,18 +367,43 @@ class ChatAgent:
         return True
     
     def _is_conversational_response(self, message: str) -> bool:
-        """Check if message is a short response to the agent's previous question.
+        """Check if message is a response to the agent's previous question.
         
         This prevents the system from running semantic search on responses like
-        "yes", "no", "okay" when the agent asked a clarifying question.
+        "yes", "no", "I would prefer X" when the agent asked a clarifying question.
+        
+        Uses intent detection to distinguish:
+        - Answer patterns: "I would prefer", "I'd like", "yes", "no" → Don't search
+        - Request patterns: "I need", "can you find", "search for" → Do search
         """
         message_lower = message.lower().strip()
+        
+        # If the agent didn't just ask a question, this isn't a conversational response
+        if not self._last_assistant_asked_question():
+            return False
         
         # Remove trailing punctuation for matching
         message_clean = message_lower.rstrip('?!.,')
         
-        # Short affirmative/negative/conversational responses
-        conversational_responses = {
+        # === PATTERNS THAT INDICATE A NEW REQUEST (should search) ===
+        new_request_patterns = [
+            "i need", "i'm looking for", "i am looking for",
+            "can you find", "can you search", "can you show",
+            "search for", "find me", "show me", "look for",
+            "what about", "how about searching",
+            "let's search", "let's find", "let's look",
+            "give me", "get me",
+        ]
+        
+        # If message starts with a request pattern, it's a new request - DO search
+        for pattern in new_request_patterns:
+            if message_lower.startswith(pattern):
+                return False  # Not conversational, should retrieve
+        
+        # === PATTERNS THAT INDICATE ANSWERING A QUESTION (don't search) ===
+        
+        # Short exact responses
+        short_responses = {
             # Affirmative
             "yes", "yeah", "yep", "yup", "sure", "ok", "okay", "k",
             "correct", "right", "exactly", "absolutely", "definitely",
@@ -395,31 +420,75 @@ class ChatAgent:
             # Clarifications
             "both", "either", "neither", "all of them", "none of them",
             "the first one", "the second one", "the latter", "the former",
-            
-            # Numbers (for quantity responses)
-            "one", "two", "three", "four", "five", "six", "seven", "eight",
-            "nine", "ten", "twelve", "fifteen", "twenty", "twenty-four",
         }
         
-        # Check if this is a conversational response
-        is_conversational = (
-            message_clean in conversational_responses or
-            message_lower in conversational_responses or
-            # Also match numeric responses like "12", "6-8", etc.
-            message_clean.replace("-", "").replace(" ", "").isdigit()
-        )
-        
-        # Only skip retrieval if the last assistant message was a question
-        if is_conversational and self._last_assistant_asked_question():
+        # Check for exact short responses
+        if message_clean in short_responses or message_lower in short_responses:
             return True
         
-        # Also handle slightly longer conversational responses
-        # e.g., "yes please", "no I don't", "yes that's fine"
-        if len(message_lower) < 40:
-            for response in conversational_responses:
-                if message_lower.startswith(response + " ") or message_lower.startswith(response + ","):
-                    if self._last_assistant_asked_question():
-                        return True
+        # Check for numeric responses (e.g., "12", "6-8", "100")
+        if message_clean.replace("-", "").replace(" ", "").isdigit():
+            return True
+        
+        # === ANSWER PATTERNS (phrases that indicate responding to a question) ===
+        answer_patterns = [
+            # Preference expressions
+            "i would prefer", "i'd prefer", "i prefer",
+            "i would like", "i'd like", "i like",
+            "i would rather", "i'd rather", "i rather",
+            "i would want", "i'd want", "i want",
+            "i would choose", "i'd choose", "i choose",
+            
+            # Opinion/belief expressions
+            "i think", "i believe", "i feel",
+            "i don't think", "i don't believe", "i don't feel",
+            "i'm not sure", "i am not sure",
+            
+            # Acceptance/rejection
+            "that would be", "that's", "that is",
+            "yes,", "yes ", "no,", "no ",
+            "sure,", "okay,", "ok,",
+            
+            # Clarifying responses
+            "actually", "well,", "hmm,",
+            "let me think", "good question",
+            
+            # Specific to our domain
+            "frozen", "fixed", "fresh",  # tissue type responses
+            "frontal", "temporal", "hippocampus", "cerebellum",  # brain region responses
+            "male", "female", "both sexes",  # sex responses
+            "age matched", "age-matched", "not age matched",
+            "with co-pathologies", "without co-pathologies",
+            "early onset", "late onset", "early-onset", "late-onset",
+        ]
+        
+        # Check if message starts with or contains answer patterns
+        for pattern in answer_patterns:
+            if message_lower.startswith(pattern):
+                return True
+        
+        # For domain-specific single-word answers (brain regions, tissue types)
+        domain_answers = {
+            "frozen", "fixed", "fresh", "paraffin",
+            "frontal", "temporal", "parietal", "occipital", "hippocampus", 
+            "cerebellum", "brainstem", "cortex", "amygdala", "striatum",
+            "male", "female", "males", "females",
+            "left", "right", "bilateral",
+        }
+        
+        # If it's a short message (under 50 chars) containing domain answers
+        if len(message_lower) < 50:
+            words = set(message_clean.split())
+            if words & domain_answers:  # intersection
+                return True
+        
+        # === FALLBACK: Short messages following questions are likely answers ===
+        # If message is reasonably short and agent just asked a question,
+        # lean towards treating it as an answer (avoids irrelevant searches)
+        if len(message_lower) < 80 and not any(p in message_lower for p in new_request_patterns):
+            # Check if it looks like an answer vs. a question or command
+            if not message_lower.endswith('?') and not message_lower.startswith(('what', 'where', 'how', 'why', 'when', 'which', 'can you', 'could you')):
+                return True
         
         return False
     
