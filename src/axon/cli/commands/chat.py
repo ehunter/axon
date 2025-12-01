@@ -22,44 +22,35 @@ console = Console(theme=Theme({
 
 @app.command("start")
 def start_chat(
-    num_samples: int = typer.Option(10, help="Number of samples to retrieve per query"),
-    stream: bool = typer.Option(True, help="Stream responses"),
+    use_tools: bool = typer.Option(True, help="Use tool-based agent (prevents hallucination)"),
 ):
     """Start an interactive chat session with Axon.
     
     Chat with the AI assistant to find brain tissue samples.
     Type 'quit' or 'exit' to end the session.
     Type 'new' to start a fresh conversation.
-    Type 'history' to see conversation summary.
+    Type 'selection' to see current sample selection.
     """
     settings = get_settings()
-    
-    if not settings.openai_api_key:
-        console.print("[red]Error:[/red] OPENAI_API_KEY not set")
-        raise typer.Exit(1)
     
     if not settings.anthropic_api_key:
         console.print("[red]Error:[/red] ANTHROPIC_API_KEY not set")
         raise typer.Exit(1)
     
     asyncio.run(_chat_loop(
-        openai_key=settings.openai_api_key,
         anthropic_key=settings.anthropic_api_key,
-        num_samples=num_samples,
-        stream=stream,
+        use_tools=use_tools,
     ))
 
 
 async def _chat_loop(
-    openai_key: str,
     anthropic_key: str,
-    num_samples: int,
-    stream: bool,
+    use_tools: bool = True,
 ):
     """Main chat loop."""
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     
-    from axon.agent.chat import ChatAgent
+    from axon.agent.chat_with_tools import ToolBasedChatAgent
     from axon.config import get_settings
     
     settings = get_settings()
@@ -71,16 +62,15 @@ async def _chat_loop(
     console.print(Panel.fit(
         "[bold green]🧠 Axon Brain Bank Assistant[/bold green]\n\n"
         "I can help you find brain tissue samples for your research.\n"
-        "Ask me about samples by diagnosis, brain region, or quality metrics.\n\n"
-        "[dim]Commands: 'quit' to exit, 'new' for fresh conversation, 'history' for summary[/dim]",
+        "All sample data comes directly from the database - no fabrication.\n\n"
+        "[dim]Commands: 'quit' to exit, 'new' for fresh conversation, 'selection' to see selected samples[/dim]",
         border_style="green",
     ))
     console.print()
     
     async with session_factory() as session:
-        agent = ChatAgent(
+        agent = ToolBasedChatAgent(
             db_session=session,
-            embedding_api_key=openai_key,
             anthropic_api_key=anthropic_key,
         )
         
@@ -101,48 +91,34 @@ async def _chat_loop(
                 
                 if command == "new":
                     agent.new_conversation()
-                    console.print("[info]Started new conversation.[/info]\n")
+                    console.print("[info]Started new conversation. Selection cleared.[/info]\n")
                     continue
                 
-                if command == "history":
-                    console.print(f"[info]{agent.get_conversation_summary()}[/info]\n")
+                if command == "selection":
+                    selection = agent.get_current_selection()
+                    console.print()
+                    console.print(Markdown(selection))
+                    console.print()
                     continue
                 
                 if command == "help":
                     _print_help()
                     continue
                 
-                # Get response from agent
+                # Get response from agent (tool-based, always complete response)
                 console.print()
-                console.print("[assistant]Axon[/assistant]", end="")
+                console.print("[assistant]Axon[/assistant]\n")
                 
-                if stream:
-                    # Stream the response
-                    console.print()
-                    response_text = ""
-                    async for chunk in await agent.chat(
-                        user_input,
-                        num_samples=num_samples,
-                        stream=True,
-                    ):
-                        console.print(chunk, end="")
-                        response_text += chunk
-                    console.print("\n")
-                else:
-                    # Get complete response
-                    response = await agent.chat(
-                        user_input,
-                        num_samples=num_samples,
-                        stream=False,
-                    )
-                    console.print()
-                    console.print(Markdown(response))
-                    console.print()
+                response = await agent.chat(user_input)
+                console.print(Markdown(response))
+                console.print()
                 
             except KeyboardInterrupt:
                 console.print("\n\n[info]Interrupted. Type 'quit' to exit.[/info]\n")
             except Exception as e:
                 console.print(f"\n[red]Error:[/red] {e}\n")
+                import traceback
+                traceback.print_exc()
     
     await engine.dispose()
 
@@ -169,14 +145,9 @@ def _print_help():
 @app.command("query")
 def single_query(
     query: str = typer.Argument(..., help="Query to ask Axon"),
-    num_samples: int = typer.Option(10, help="Number of samples to retrieve"),
 ):
     """Ask a single question without starting a chat session."""
     settings = get_settings()
-    
-    if not settings.openai_api_key:
-        console.print("[red]Error:[/red] OPENAI_API_KEY not set")
-        raise typer.Exit(1)
     
     if not settings.anthropic_api_key:
         console.print("[red]Error:[/red] ANTHROPIC_API_KEY not set")
@@ -184,22 +155,18 @@ def single_query(
     
     asyncio.run(_single_query(
         query=query,
-        openai_key=settings.openai_api_key,
         anthropic_key=settings.anthropic_api_key,
-        num_samples=num_samples,
     ))
 
 
 async def _single_query(
     query: str,
-    openai_key: str,
     anthropic_key: str,
-    num_samples: int,
 ):
     """Execute a single query."""
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     
-    from axon.agent.chat import ChatAgent
+    from axon.agent.chat_with_tools import ToolBasedChatAgent
     from axon.config import get_settings
     
     settings = get_settings()
@@ -207,19 +174,14 @@ async def _single_query(
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     
     async with session_factory() as session:
-        agent = ChatAgent(
+        agent = ToolBasedChatAgent(
             db_session=session,
-            embedding_api_key=openai_key,
             anthropic_api_key=anthropic_key,
         )
         
         console.print("\n[assistant]Axon[/assistant]\n")
         
-        response = await agent.chat(
-            query,
-            num_samples=num_samples,
-            stream=False,
-        )
+        response = await agent.chat(query)
         
         console.print(Markdown(response))
         console.print()
