@@ -10,10 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from axon.agent.prompts import SYSTEM_PROMPT, EDUCATIONAL_TOPICS
 from axon.agent.database_queries import (
     get_race_breakdown_detailed,
+    get_ethnicity_breakdown,
     get_diagnosis_breakdown,
     get_sample_count_by_source,
     get_sample_count_by_sex,
     count_samples_with_filter,
+    count_samples_with_demographics,
     get_total_sample_count,
     compare_demographics_neuropathology,
     get_complex_stats,
@@ -245,11 +247,52 @@ class ChatAgent:
             context_parts.append(stats)
             return "\n\n".join(context_parts)
         
-        # Check for race-related questions
-        race_keywords = ["race", "african", "black", "white", "asian", "hispanic", "ethnicity"]
-        if any(kw in message_lower for kw in race_keywords):
+        # Handle demographic count queries (e.g., "how many hispanic women")
+        # This is for simple counts without neuropathology
+        if has_demographics and (ethnicity or race):
+            sex = None
+            if "women" in message_lower or "female" in message_lower:
+                sex = "female"
+            elif "men" in message_lower or "male" in message_lower:
+                sex = "male"
+            
+            # Build count query
+            count = await count_samples_with_demographics(
+                self.db_session,
+                sex=sex,
+                race=race,
+                ethnicity=ethnicity,
+                min_age=min_age,
+                max_age=max_age,
+            )
+            
+            # Build description
+            desc_parts = []
+            if ethnicity:
+                desc_parts.append(ethnicity)
+            if race:
+                desc_parts.append(race)
+            if sex:
+                desc_parts.append("women" if sex == "female" else "men")
+            if min_age:
+                desc_parts.append(f"over {min_age}")
+            if max_age:
+                desc_parts.append(f"under {max_age}")
+            
+            desc = " ".join(desc_parts) if desc_parts else "samples"
+            context_parts.append(f"**{desc.title()} in database:** {count:,}")
+            return "\n\n".join(context_parts)
+        
+        # Check for race-related questions (general breakdown)
+        race_keywords = ["race", "african", "black", "white", "asian"]
+        if any(kw in message_lower for kw in race_keywords) and not (ethnicity or race):
             race_stats = await get_race_breakdown_detailed(self.db_session)
             context_parts.append(race_stats)
+        
+        # Check for ethnicity-related questions (general breakdown)
+        elif "hispanic" in message_lower or "latino" in message_lower or "ethnicity" in message_lower:
+            ethnicity_stats = await get_ethnicity_breakdown(self.db_session)
+            context_parts.append(ethnicity_stats)
         
         # Check for sex-related questions
         elif any(kw in message_lower for kw in ["male", "female", "sex", "gender"]):
