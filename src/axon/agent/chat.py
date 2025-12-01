@@ -385,6 +385,26 @@ class ChatAgent:
         # Remove trailing punctuation for matching
         message_clean = message_lower.rstrip('?!.,')
         
+        # === PATTERNS THAT ASK FOR AGENT'S ADVICE (don't search, use knowledge) ===
+        advice_patterns = [
+            "what do you recommend", "what would you recommend",
+            "what do you suggest", "what would you suggest",
+            "what's your recommendation", "what is your recommendation",
+            "which do you recommend", "which would you recommend",
+            "any suggestions", "any recommendations",
+            "what should i", "what would you advise",
+            "do you have any suggestions", "do you have any recommendations",
+            "what's best", "what is best", "which is best",
+            "what's better", "what is better", "which is better",
+            "your thoughts", "your opinion", "what do you think",
+            "help me choose", "help me decide",
+        ]
+        
+        # If asking for advice, use knowledge base / conversation context, not sample search
+        for pattern in advice_patterns:
+            if pattern in message_lower:
+                return True  # Conversational, should NOT retrieve samples
+        
         # === PATTERNS THAT INDICATE A NEW REQUEST (should search) ===
         new_request_patterns = [
             "i need", "i'm looking for", "i am looking for",
