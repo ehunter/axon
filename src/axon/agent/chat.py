@@ -899,19 +899,31 @@ JSON:"""
             "we need",
             "our lab needs",
             "my study requires",
+            "i'm searching for",
+            "i am searching for",
         ]
         
         # Check if this looks like an initial requirement
         is_requirement = any(message_lower.startswith(p) for p in requirement_patterns)
         
         # Also check for sample-related keywords
-        sample_keywords = ["sample", "tissue", "brain", "control", "case"]
+        sample_keywords = ["sample", "tissue", "brain", "control", "case", "samples"]
         has_sample_keyword = any(kw in message_lower for kw in sample_keywords)
         
-        # If it's a requirement statement with sample keywords, and this is early in conversation
-        # (fewer than 4 exchanges), don't search yet - let agent ask questions
-        if is_requirement and has_sample_keyword and len(self.conversation.messages) < 4:
-            return True
+        # Check if we have enough criteria gathered yet
+        has_enough_criteria = (
+            self.matching_criteria.diagnosis is not None and
+            self.matching_criteria.brain_region is not None and
+            (not self.matching_criteria.needs_controls or self.matching_criteria.n_controls > 0)
+        )
+        
+        # If it's a requirement statement with sample keywords:
+        # - AND we're early in conversation (< 6 messages), OR
+        # - AND we don't have enough criteria gathered yet
+        # → Don't search, let agent ask questions
+        if is_requirement and has_sample_keyword:
+            if len(self.conversation.messages) < 6 or not has_enough_criteria:
+                return True
         
         return False
     
