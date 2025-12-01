@@ -153,3 +153,136 @@ async def get_diagnosis_breakdown(session: AsyncSession, search_term: str | None
             lines.append(f"- {diagnosis}: **{count:,}**")
         return "\n".join(lines)
 
+
+async def get_neuropathology_by_demographics(
+    session: AsyncSession,
+    min_age: int | None = None,
+    max_age: int | None = None,
+    sex: str | None = None,
+    race: str | None = None,
+    ethnicity: str | None = None,
+    limit: int = 10,
+) -> dict[str, int]:
+    """Get neuropathology diagnosis breakdown filtered by demographics."""
+    query = (
+        select(Sample.primary_diagnosis, func.count(Sample.id).label("count"))
+        .where(Sample.primary_diagnosis.isnot(None))
+    )
+    
+    if min_age is not None:
+        query = query.where(Sample.donor_age >= min_age)
+    
+    if max_age is not None:
+        query = query.where(Sample.donor_age <= max_age)
+    
+    if sex:
+        query = query.where(Sample.donor_sex.ilike(f"%{sex}%"))
+    
+    if race:
+        query = query.where(Sample.donor_race.ilike(f"%{race}%"))
+    
+    if ethnicity:
+        # Use exact match to avoid matching "Not Hispanic or Latino" when searching for "Hispanic"
+        if ethnicity.lower() == "hispanic":
+            query = query.where(Sample.donor_ethnicity == "Hispanic or Latino")
+        else:
+            query = query.where(Sample.donor_ethnicity.ilike(f"%{ethnicity}%"))
+    
+    query = (
+        query.group_by(Sample.primary_diagnosis)
+        .order_by(func.count(Sample.id).desc())
+        .limit(limit)
+    )
+    
+    result = await session.execute(query)
+    return {row.primary_diagnosis: row.count for row in result}
+
+
+async def compare_demographics_neuropathology(
+    session: AsyncSession,
+    group1_filters: dict,
+    group2_filters: dict,
+    group1_label: str = "Group 1",
+    group2_label: str = "Group 2",
+    limit: int = 10,
+) -> str:
+    """Compare neuropathology between two demographic groups."""
+    
+    # Get counts for both groups
+    group1_counts = await get_neuropathology_by_demographics(session, **group1_filters, limit=limit)
+    group2_counts = await get_neuropathology_by_demographics(session, **group2_filters, limit=limit)
+    
+    group1_total = sum(group1_counts.values())
+    group2_total = sum(group2_counts.values())
+    
+    lines = [f"**Neuropathology Comparison:**\n"]
+    lines.append(f"**{group1_label}** (n={group1_total:,}):\n")
+    
+    for diagnosis, count in list(group1_counts.items())[:5]:
+        pct = (count / group1_total * 100) if group1_total > 0 else 0
+        lines.append(f"  - {diagnosis}: {count:,} ({pct:.1f}%)")
+    
+    lines.append(f"\n**{group2_label}** (n={group2_total:,}):\n")
+    
+    for diagnosis, count in list(group2_counts.items())[:5]:
+        pct = (count / group2_total * 100) if group2_total > 0 else 0
+        lines.append(f"  - {diagnosis}: {count:,} ({pct:.1f}%)")
+    
+    return "\n".join(lines)
+
+
+async def get_complex_stats(
+    session: AsyncSession,
+    min_age: int | None = None,
+    max_age: int | None = None,
+    sex: str | None = None,
+    race: str | None = None,
+    ethnicity: str | None = None,
+) -> str:
+    """Get statistics for a specific demographic slice."""
+    
+    # Build filter description
+    filters = []
+    if min_age is not None:
+        filters.append(f"age ≥ {min_age}")
+    if max_age is not None:
+        filters.append(f"age ≤ {max_age}")
+    if sex:
+        filters.append(f"sex: {sex}")
+    if race:
+        filters.append(f"race: {race}")
+    if ethnicity:
+        filters.append(f"ethnicity: {ethnicity}")
+    
+    filter_desc = ", ".join(filters) if filters else "all samples"
+    
+    # Get total count
+    total = await count_samples_with_filter(
+        session, 
+        race=race,
+        sex=sex,
+        min_age=min_age,
+        max_age=max_age,
+    )
+    
+    # Get diagnosis breakdown
+    diagnoses = await get_neuropathology_by_demographics(
+        session,
+        min_age=min_age,
+        max_age=max_age,
+        sex=sex,
+        race=race,
+        ethnicity=ethnicity,
+        limit=10,
+    )
+    
+    lines = [f"**Statistics for {filter_desc}:**\n"]
+    lines.append(f"**Total samples:** {total:,}\n")
+    lines.append("**Top diagnoses:**")
+    
+    for diagnosis, count in diagnoses.items():
+        pct = (count / total * 100) if total > 0 else 0
+        lines.append(f"  - {diagnosis}: {count:,} ({pct:.1f}%)")
+    
+    return "\n".join(lines)
+
