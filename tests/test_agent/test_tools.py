@@ -234,9 +234,11 @@ class TestToolHandler:
     @pytest.mark.asyncio
     async def test_add_nonexistent_sample_fails(self, handler, mock_session):
         """Cannot add a sample that doesn't exist in database."""
-        # Mock the database to return no sample
+        # Mock the database to return no samples
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []  # Empty list = no samples found
+        mock_result.scalars.return_value = mock_scalars
         mock_session.execute.return_value = mock_result
         
         result = await handler.handle_tool_call("add_to_selection", {
