@@ -15,6 +15,8 @@ from axon.agent.database_queries import (
     get_sample_count_by_sex,
     count_samples_with_filter,
     get_total_sample_count,
+    compare_demographics_neuropathology,
+    get_complex_stats,
 )
 from axon.db.models import Sample
 from axon.rag.retrieval import ContextBuilder, RAGRetriever, RetrievedSample
@@ -163,7 +165,8 @@ class ChatAgent:
         # Keywords indicating aggregate/count questions
         count_keywords = [
             "how many", "total number", "count", "breakdown", 
-            "statistics", "summary", "available", "do you have"
+            "statistics", "summary", "available", "do you have",
+            "most common", "compare", "vs", "versus", "difference"
         ]
         
         is_stats_question = any(kw in message_lower for kw in count_keywords)
@@ -172,6 +175,75 @@ class ChatAgent:
             return None
         
         context_parts = ["## Database Statistics\n"]
+        
+        # Check for complex demographic comparison queries
+        # e.g., "neuropathology in hispanic women vs men over 65"
+        is_comparison = any(kw in message_lower for kw in ["vs", "versus", "compare", "difference"])
+        has_demographics = any(kw in message_lower for kw in ["women", "men", "male", "female", "hispanic", "black", "white", "asian"])
+        has_neuropathology = any(kw in message_lower for kw in ["neuropathology", "diagnosis", "pathology", "disease"])
+        
+        # Extract age filter (handle "over 65", "over-65", ">65", "65+", "65 years old", etc.)
+        import re
+        age_match = re.search(r'(?:over|above|>)[\s-]*(\d+)', message_lower)
+        if not age_match:
+            age_match = re.search(r'(\d+)\s*(?:\+|years?\s*old|year[\s-]*old)', message_lower)
+        min_age = int(age_match.group(1)) if age_match else None
+        
+        age_match_max = re.search(r'(?:under|below|<)[\s-]*(\d+)', message_lower)
+        max_age = int(age_match_max.group(1)) if age_match_max else None
+        
+        # Extract ethnicity/race
+        ethnicity = None
+        race = None
+        if "hispanic" in message_lower or "latino" in message_lower:
+            ethnicity = "Hispanic"
+        if "black" in message_lower or "african" in message_lower:
+            race = "Black"
+        if "white" in message_lower or "caucasian" in message_lower:
+            race = "White"
+        if "asian" in message_lower:
+            race = "Asian"
+        
+        # Handle comparison queries (e.g., "women vs men")
+        if is_comparison and has_demographics and has_neuropathology:
+            # Determine what we're comparing
+            if ("women" in message_lower or "female" in message_lower) and ("men" in message_lower or "male" in message_lower):
+                # Comparing women vs men
+                group1_filters = {"sex": "female", "min_age": min_age, "max_age": max_age, "ethnicity": ethnicity, "race": race}
+                group2_filters = {"sex": "male", "min_age": min_age, "max_age": max_age, "ethnicity": ethnicity, "race": race}
+                
+                age_desc = f" over {min_age}" if min_age else ""
+                eth_desc = f" {ethnicity}" if ethnicity else ""
+                race_desc = f" {race}" if race else ""
+                
+                comparison = await compare_demographics_neuropathology(
+                    self.db_session,
+                    group1_filters,
+                    group2_filters,
+                    group1_label=f"{eth_desc}{race_desc} Women{age_desc}".strip(),
+                    group2_label=f"{eth_desc}{race_desc} Men{age_desc}".strip(),
+                )
+                context_parts.append(comparison)
+                return "\n\n".join(context_parts)
+        
+        # Handle complex single-group queries (e.g., "neuropathology in hispanic women over 65")
+        if has_demographics and has_neuropathology:
+            sex = None
+            if "women" in message_lower or "female" in message_lower:
+                sex = "female"
+            elif "men" in message_lower or "male" in message_lower:
+                sex = "male"
+            
+            stats = await get_complex_stats(
+                self.db_session,
+                min_age=min_age,
+                max_age=max_age,
+                sex=sex,
+                race=race,
+                ethnicity=ethnicity,
+            )
+            context_parts.append(stats)
+            return "\n\n".join(context_parts)
         
         # Check for race-related questions
         race_keywords = ["race", "african", "black", "white", "asian", "hispanic", "ethnicity"]
