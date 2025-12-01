@@ -6,6 +6,7 @@ from axon.cli.commands.ingest import app as ingest_app
 from axon.cli.commands.embeddings import app as embeddings_app
 from axon.cli.commands.chat import app as chat_app
 from axon.cli.commands.knowledge import app as knowledge_app
+from axon.cli.commands.export import app as export_app
 
 app = typer.Typer(
     name="axon",
@@ -18,6 +19,7 @@ app.add_typer(ingest_app, name="import", help="Import data from brain banks")
 app.add_typer(embeddings_app, name="embeddings", help="Generate and manage embeddings")
 app.add_typer(chat_app, name="chat", help="Chat with Axon assistant")
 app.add_typer(knowledge_app, name="knowledge", help="Manage knowledge base (web content)")
+app.add_typer(export_app, name="export", help="Export sample selections")
 
 
 @app.command()
