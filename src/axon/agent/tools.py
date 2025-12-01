@@ -223,18 +223,19 @@ class SampleSelection:
         lines = ["## Current Sample Selection\n"]
         
         if self.cases:
-            lines.append(f"**Cases ({len(self.cases)}):**")
+            lines.append(f"**Cases ({len(self.cases)}):**\n")
             for s in self.cases:
                 rin_str = f"{s.rin:.1f}" if s.rin else "N/A"
                 pmi_str = f"{s.pmi:.1f}h" if s.pmi else "N/A"
-                lines.append(f"- **{s.external_id}** ({s.source_bank}): {s.diagnosis}, Age {s.age}, {s.sex}, RIN {rin_str}, PMI {pmi_str}")
+                braak_str = f", Braak {s.braak_stage}" if s.braak_stage else ""
+                lines.append(f"- **{s.external_id}** | Repository: {s.source_bank} | {s.diagnosis} | Age {s.age}, {s.sex} | RIN {rin_str}, PMI {pmi_str}{braak_str}")
         
         if self.controls:
-            lines.append(f"\n**Controls ({len(self.controls)}):**")
+            lines.append(f"\n**Controls ({len(self.controls)}):**\n")
             for s in self.controls:
                 rin_str = f"{s.rin:.1f}" if s.rin else "N/A"
                 pmi_str = f"{s.pmi:.1f}h" if s.pmi else "N/A"
-                lines.append(f"- **{s.external_id}** ({s.source_bank}): Age {s.age}, {s.sex}, RIN {rin_str}, PMI {pmi_str}")
+                lines.append(f"- **{s.external_id}** | Repository: {s.source_bank} | Age {s.age}, {s.sex} | RIN {rin_str}, PMI {pmi_str}")
         
         return "\n".join(lines)
 
@@ -333,13 +334,14 @@ class ToolHandler:
             pmi_str = f"{float(s.postmortem_interval_hours):.1f}h" if s.postmortem_interval_hours else "N/A"
             braak = self._extract_braak(s)
             
-            lines.append(f"{i}. **{s.external_id}** ({s.source_bank})")
+            lines.append(f"{i}. **{s.external_id}**")
+            lines.append(f"   - Repository: {s.source_bank or 'N/A'}")
             lines.append(f"   - Diagnosis: {s.primary_diagnosis or 'N/A'}")
             lines.append(f"   - Age: {s.donor_age or 'N/A'}, Sex: {s.donor_sex or 'N/A'}")
             lines.append(f"   - RIN: {rin_str}, PMI: {pmi_str}")
             if braak:
                 lines.append(f"   - Braak Stage: {braak}")
-            lines.append(f"   - Region: {s.brain_region or 'N/A'}")
+            lines.append(f"   - Brain Region: {s.brain_region or 'N/A'}")
             lines.append("")
         
         return "\n".join(lines)
