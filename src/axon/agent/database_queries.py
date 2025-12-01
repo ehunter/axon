@@ -140,6 +140,66 @@ async def get_race_breakdown_detailed(session: AsyncSession) -> str:
     return "\n".join(lines)
 
 
+async def get_sample_count_by_ethnicity(session: AsyncSession) -> dict[str, int]:
+    """Get count of samples by donor ethnicity."""
+    query = (
+        select(Sample.donor_ethnicity, func.count(Sample.id).label("count"))
+        .where(Sample.donor_ethnicity.isnot(None))
+        .group_by(Sample.donor_ethnicity)
+        .order_by(func.count(Sample.id).desc())
+    )
+    result = await session.execute(query)
+    return {row.donor_ethnicity: row.count for row in result}
+
+
+async def get_ethnicity_breakdown(session: AsyncSession) -> str:
+    """Get a formatted breakdown of samples by ethnicity."""
+    counts = await get_sample_count_by_ethnicity(session)
+    total = sum(counts.values())
+    
+    lines = ["**Sample Counts by Donor Ethnicity:**\n"]
+    for ethnicity, count in sorted(counts.items(), key=lambda x: -x[1]):
+        pct = (count / total) * 100 if total > 0 else 0
+        lines.append(f"- {ethnicity}: **{count:,}** ({pct:.1f}%)")
+    
+    lines.append(f"\n**Total with ethnicity data:** {total:,}")
+    return "\n".join(lines)
+
+
+async def count_samples_with_demographics(
+    session: AsyncSession,
+    sex: str | None = None,
+    race: str | None = None,
+    ethnicity: str | None = None,
+    min_age: int | None = None,
+    max_age: int | None = None,
+) -> int:
+    """Count samples with specific demographic filters."""
+    query = select(func.count(Sample.id))
+    
+    if sex:
+        query = query.where(Sample.donor_sex.ilike(f"%{sex}%"))
+    
+    if race:
+        query = query.where(Sample.donor_race.ilike(f"%{race}%"))
+    
+    if ethnicity:
+        # Use exact match for Hispanic to avoid "Not Hispanic or Latino"
+        if ethnicity.lower() == "hispanic":
+            query = query.where(Sample.donor_ethnicity == "Hispanic or Latino")
+        else:
+            query = query.where(Sample.donor_ethnicity.ilike(f"%{ethnicity}%"))
+    
+    if min_age is not None:
+        query = query.where(Sample.donor_age >= min_age)
+    
+    if max_age is not None:
+        query = query.where(Sample.donor_age <= max_age)
+    
+    result = await session.execute(query)
+    return result.scalar() or 0
+
+
 async def get_diagnosis_breakdown(session: AsyncSession, search_term: str | None = None) -> str:
     """Get a formatted breakdown of samples by diagnosis."""
     if search_term:
