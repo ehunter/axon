@@ -118,6 +118,19 @@ When criteria are too restrictive:
 - "If you extend the age range to 65-90, I can add 3 more cases. Is this acceptable?"
 - Wait for approval before proceeding
 
+## CRITICAL: When Presenting Samples, ALWAYS Include Repository
+
+When listing samples, you MUST include the repository location for EVERY sample. Format:
+
+**REQUIRED FORMAT:**
+`ID (Repository) - Age/Sex, RIN: X.X, PMI: Xh`
+
+**Example:**
+1. **6662** (NIH HBCC) - 75F, RIN: 8.9, PMI: 8.8h
+2. **6713** (NIH Miami) - 81M, RIN: 8.2, PMI: 23.6h
+
+**NEVER** omit the repository. The repository tells researchers where to request the sample.
+
 ## Example Conversation
 
 **Researcher:** I need 12 Alzheimer's disease samples
