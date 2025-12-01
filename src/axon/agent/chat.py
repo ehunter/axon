@@ -342,6 +342,7 @@ class ChatAgent:
         
         This is triggered when the agent announced a search and user confirmed.
         Returns formatted context for Claude to present results.
+        Uses the matching service to find statistically balanced case-control sets.
         """
         # Extract criteria from conversation using Claude
         criteria = await self._extract_criteria_from_conversation()
@@ -356,11 +357,13 @@ class ChatAgent:
         
         # Use the matching service for a proper database query
         from axon.matching.candidates import find_case_candidates, find_control_candidates
+        from axon.matching.matcher import SampleMatcher
+        from axon.matching.statistics import run_balance_tests
         
         context_parts = ["## Search Results Based on Your Criteria\n"]
         context_parts.append(f"**Searching for:** {criteria.get('diagnosis', 'samples')}")
         
-        # Find cases
+        # Find case candidates
         cases = await find_case_candidates(
             self.db_session,
             diagnosis=criteria.get('diagnosis'),
@@ -369,26 +372,16 @@ class ChatAgent:
             brain_region=criteria.get('brain_region'),
             min_rin=criteria.get('min_rin'),
             max_pmi=criteria.get('max_pmi'),
-            limit=limit,
+            limit=limit * 2,  # Get more candidates for matching
         )
         
-        if cases:
-            context_parts.append(f"\n**Found {len(cases)} matching case samples:**\n")
-            for i, case in enumerate(cases[:10], 1):
-                context_parts.append(
-                    f"{i}. **{case.external_id}** ({case.source_bank})\n"
-                    f"   - Diagnosis: {case.diagnosis}\n"
-                    f"   - Age: {case.age}, Sex: {case.sex}\n"
-                    f"   - RIN: {case.rin}, PMI: {case.pmi}h\n"
-                    f"   - Brain region: {case.brain_region}\n"
-                )
-            if len(cases) > 10:
-                context_parts.append(f"\n... and {len(cases) - 10} more samples available.\n")
-        else:
+        if not cases:
             context_parts.append("\n**No cases found matching all criteria.**\n")
             context_parts.append("Consider relaxing some constraints.\n")
+            return "\n".join(context_parts)
         
-        # Find controls if needed
+        # Find control candidates if needed
+        controls = []
         if criteria.get('needs_controls'):
             controls = await find_control_candidates(
                 self.db_session,
@@ -397,21 +390,100 @@ class ChatAgent:
                 brain_region=criteria.get('brain_region'),
                 min_rin=criteria.get('min_rin'),
                 max_pmi=criteria.get('max_pmi'),
-                limit=limit,
+                limit=limit * 2,
+            )
+        
+        # If we have both cases and controls, use the matcher for optimal selection
+        if cases and controls:
+            matcher = SampleMatcher()
+            
+            # Determine number of samples to match
+            n_samples = min(limit, len(cases), len(controls))
+            
+            # Run the matching algorithm
+            match_result = matcher.find_matched_sets(
+                cases=cases,
+                controls=controls,
+                n_per_group=n_samples,
+                exact_sex_match=criteria.get('equal_sex', True),
             )
             
-            if controls:
-                context_parts.append(f"\n**Found {len(controls)} matching control samples:**\n")
-                for i, ctrl in enumerate(controls[:10], 1):
+            if match_result.success:
+                matched_cases = match_result.cases
+                matched_controls = match_result.controls
+                
+                context_parts.append(f"\n✅ **Successfully matched {len(matched_cases)} cases with {len(matched_controls)} controls**\n")
+                
+                # Add statistical summary
+                if match_result.statistical_report:
+                    context_parts.append("\n" + match_result.statistical_report.to_summary() + "\n")
+                
+                # List matched cases
+                context_parts.append("\n**Matched Case Samples:**\n")
+                for i, case in enumerate(matched_cases[:15], 1):
+                    context_parts.append(
+                        f"{i}. **{case.external_id}** ({case.source_bank})\n"
+                        f"   - Diagnosis: {case.diagnosis}\n"
+                        f"   - Age: {case.age}, Sex: {case.sex}\n"
+                        f"   - RIN: {case.rin:.1f}, PMI: {case.pmi:.1f}h\n"
+                    )
+                if len(matched_cases) > 15:
+                    context_parts.append(f"\n... and {len(matched_cases) - 15} more cases.\n")
+                
+                # List matched controls
+                context_parts.append("\n**Matched Control Samples:**\n")
+                for i, ctrl in enumerate(matched_controls[:15], 1):
                     context_parts.append(
                         f"{i}. **{ctrl.external_id}** ({ctrl.source_bank})\n"
                         f"   - Age: {ctrl.age}, Sex: {ctrl.sex}\n"
-                        f"   - RIN: {ctrl.rin}, PMI: {ctrl.pmi}h\n"
+                        f"   - RIN: {ctrl.rin:.1f}, PMI: {ctrl.pmi:.1f}h\n"
                     )
-                if len(controls) > 10:
-                    context_parts.append(f"\n... and {len(controls) - 10} more controls available.\n")
+                if len(matched_controls) > 15:
+                    context_parts.append(f"\n... and {len(matched_controls) - 15} more controls.\n")
             else:
-                context_parts.append("\n**No control samples found matching criteria.**\n")
+                # Matching failed - show what we have and suggestions
+                context_parts.append(f"\n⚠️ **Could not achieve optimal matching:** {match_result.message}\n")
+                
+                if match_result.suggestions:
+                    context_parts.append("\n**Suggestions:**\n")
+                    for suggestion in match_result.suggestions:
+                        context_parts.append(f"- {suggestion}\n")
+                
+                # Still show available samples
+                context_parts.append(f"\n**Available case samples ({len(cases)} found):**\n")
+                for i, case in enumerate(cases[:10], 1):
+                    context_parts.append(
+                        f"{i}. **{case.external_id}** - Age: {case.age}, Sex: {case.sex}, RIN: {case.rin}, PMI: {case.pmi}h\n"
+                    )
+                
+                context_parts.append(f"\n**Available control samples ({len(controls)} found):**\n")
+                for i, ctrl in enumerate(controls[:10], 1):
+                    context_parts.append(
+                        f"{i}. **{ctrl.external_id}** - Age: {ctrl.age}, Sex: {ctrl.sex}, RIN: {ctrl.rin}, PMI: {ctrl.pmi}h\n"
+                    )
+        
+        elif cases and not criteria.get('needs_controls'):
+            # Only cases needed, no matching required
+            context_parts.append(f"\n**Found {len(cases)} matching case samples:**\n")
+            for i, case in enumerate(cases[:15], 1):
+                context_parts.append(
+                    f"{i}. **{case.external_id}** ({case.source_bank})\n"
+                    f"   - Diagnosis: {case.diagnosis}\n"
+                    f"   - Age: {case.age}, Sex: {case.sex}\n"
+                    f"   - RIN: {case.rin}, PMI: {case.pmi}h\n"
+                    f"   - Brain region: {case.brain_region}\n"
+                )
+            if len(cases) > 15:
+                context_parts.append(f"\n... and {len(cases) - 15} more samples available.\n")
+        
+        elif cases and criteria.get('needs_controls') and not controls:
+            context_parts.append(f"\n**Found {len(cases)} case samples, but no matching controls.**\n")
+            context_parts.append("Consider relaxing control criteria or age matching.\n")
+            
+            for i, case in enumerate(cases[:10], 1):
+                context_parts.append(
+                    f"{i}. **{case.external_id}** - Age: {case.age}, Sex: {case.sex}\n"
+                )
         
         return "\n".join(context_parts)
     
