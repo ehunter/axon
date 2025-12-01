@@ -1,4 +1,4 @@
-# 🧠 Axon
+# Axon
 
 **Brain Bank Discovery System** — An AI-powered assistant that helps neuroscience researchers find the ideal brain tissue samples for their studies.
 
@@ -12,11 +12,11 @@ Axon is a conversational RAG (Retrieval-Augmented Generation) system that combin
 
 ## Features
 
-- 🔬 **Intelligent Sample Discovery** — Describe your research needs in plain language
-- 🧬 **Expert Knowledge** — RAG system enriched with neuroscience literature
-- 💬 **Conversational Interface** — Natural back-and-forth like ChatGPT
-- 📊 **Multi-Source Data** — Unified access to multiple brain bank databases
-- 🔄 **Continuous Learning** — System improves as more papers are ingested
+- **Intelligent Sample Discovery** — Describe your research needs in plain language
+-  **Expert Knowledge** — RAG system enriched with neuroscience literature
+- **Conversational Interface** — Natural back-and-forth like ChatGPT
+- **Multi-Source Data** — Unified access to multiple brain bank databases
+- **Continuous Learning** — System improves as more papers are ingested
 
 ## Quick Start
 
