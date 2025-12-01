@@ -546,45 +546,66 @@ class ToolHandler:
         return f"Unknown stat_type: {stat_type}"
     
     def _extract_braak(self, sample: Sample) -> str | None:
-        """Extract Braak stage from extended_data if available."""
+        """Extract Braak stage from raw_data if available."""
+        if not sample.raw_data:
+            return None
+        
+        # Check for Braak NFT Stage (Alzheimer's)
+        braak_nft = sample.raw_data.get("Braak NFT Stage")
+        if braak_nft and braak_nft not in ("No Results Reported", "Not Assessed", ""):
+            return f"NFT {braak_nft}"
+        
+        # Check for Braak PD Stage (Parkinson's)
+        braak_pd = sample.raw_data.get("Braak PD Stage")
+        if braak_pd and braak_pd not in ("No Results Reported", "Not Assessed", "", "PD Stage 0"):
+            return f"PD {braak_pd}"
+        
+        # Also check extended_data as fallback
         if sample.extended_data:
             return sample.extended_data.get("braak_stage") or sample.extended_data.get("braak")
+        
         return None
     
     def _extract_copathologies(self, sample: Sample) -> str:
-        """Extract co-pathology information from extended_data."""
-        if not sample.extended_data:
-            return "Not recorded"
-        
+        """Extract co-pathology information from raw_data and extended_data."""
         copaths = []
-        ext = sample.extended_data
         
-        # Check for TDP-43
-        tdp43 = ext.get("tdp43") or ext.get("tdp_43") or ext.get("tdp43_pathology")
-        if tdp43 and str(tdp43).lower() not in ("none", "no", "negative", "0", ""):
-            copaths.append(f"TDP-43: {tdp43}")
+        # Check raw_data first (primary source)
+        if sample.raw_data:
+            raw = sample.raw_data
+            
+            # Thal Phase (amyloid plaques)
+            thal = raw.get("Thal Phase") or raw.get("Thal Value")
+            if thal and thal not in ("No Results Reported", "Not Assessed", ""):
+                copaths.append(f"Thal: {thal}")
+            
+            # CERAD Score
+            cerad = raw.get("CERAD Score") or raw.get("CERAD Value")
+            if cerad and cerad not in ("No Results Reported", "Not Assessed", ""):
+                copaths.append(f"CERAD: {cerad}")
+            
+            # Check neuropathology diagnosis for co-pathologies
+            neuropath = raw.get("neuropathology_diagnosis") or ""
+            if "lewy" in neuropath.lower():
+                copaths.append("Lewy bodies noted")
+            if "amyloid angiopathy" in neuropath.lower():
+                copaths.append("CAA noted")
         
-        # Check for synucleinopathy / Lewy bodies
-        syn = ext.get("synucleinopathy") or ext.get("lewy_bodies") or ext.get("alpha_synuclein")
-        if syn and str(syn).lower() not in ("none", "no", "negative", "0", ""):
-            copaths.append(f"Synucleinopathy: {syn}")
-        
-        # Check for CAA (Cerebral Amyloid Angiopathy)
-        caa = ext.get("caa") or ext.get("cerebral_amyloid_angiopathy")
-        if caa and str(caa).lower() not in ("none", "no", "negative", "0", ""):
-            copaths.append(f"CAA: {caa}")
-        
-        # Check for vascular pathology
-        vasc = ext.get("vascular_pathology") or ext.get("vascular")
-        if vasc and str(vasc).lower() not in ("none", "no", "negative", "0", ""):
-            copaths.append(f"Vascular: {vasc}")
-        
-        # Check for Thal phase (amyloid)
-        thal = ext.get("thal_phase") or ext.get("thal")
-        if thal:
-            copaths.append(f"Thal: {thal}")
+        # Check extended_data as fallback
+        if sample.extended_data:
+            ext = sample.extended_data
+            
+            # TDP-43
+            tdp43 = ext.get("tdp43") or ext.get("tdp_43")
+            if tdp43 and str(tdp43).lower() not in ("none", "no", "negative", "0", ""):
+                copaths.append(f"TDP-43: {tdp43}")
+            
+            # Synucleinopathy
+            syn = ext.get("synucleinopathy") or ext.get("lewy_bodies")
+            if syn and str(syn).lower() not in ("none", "no", "negative", "0", ""):
+                copaths.append(f"Synucleinopathy: {syn}")
         
         if copaths:
             return ", ".join(copaths)
-        return "None noted"
+        return "Not recorded"
 
