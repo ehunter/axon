@@ -74,7 +74,7 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "add_to_selection",
-        "description": "Add a sample to the current selection by its ID. The sample must exist in the database.",
+        "description": "Add a sample to the current selection by its ID. The sample must exist in the database. If multiple tissue samples exist for the same subject, the one with best RIN is selected.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -86,6 +86,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "enum": ["cases", "controls"],
                     "description": "Whether this is a case or control sample"
+                },
+                "brain_region": {
+                    "type": "string",
+                    "description": "Optional: filter by brain region if multiple samples exist for this subject"
                 }
             },
             "required": ["sample_id", "group"]
@@ -356,17 +360,32 @@ class ToolHandler:
         """Add a sample to the selection."""
         sample_id = params.get("sample_id")
         group = params.get("group")
+        brain_region = params.get("brain_region")  # Optional filter
         
         if not sample_id or not group:
             return "Error: sample_id and group are required."
         
         # Verify sample exists in database
         query = select(Sample).where(Sample.external_id == sample_id)
-        result = await self.db_session.execute(query)
-        sample = result.scalar_one_or_none()
         
-        if not sample:
+        # If brain region specified, filter by it
+        if brain_region:
+            query = query.where(Sample.brain_region.ilike(f"%{brain_region}%"))
+        
+        # Also prefer samples with RIN data for quality
+        query = query.order_by(Sample.rin_score.desc().nullslast())
+        
+        result = await self.db_session.execute(query)
+        samples = result.scalars().all()
+        
+        if not samples:
             return f"Error: Sample '{sample_id}' not found in database. Cannot add non-existent samples."
+        
+        # If multiple matches, take the best one (highest RIN) and note it
+        sample = samples[0]
+        multiple_note = ""
+        if len(samples) > 1:
+            multiple_note = f" (Note: {len(samples)} tissue samples exist for this subject; selected the one with best RIN)"
         
         # Create selected sample
         selected = SelectedSample(
@@ -384,12 +403,12 @@ class ToolHandler:
         
         if group == "cases":
             if self.selection.add_case(selected):
-                return f"Added {sample_id} to cases. Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
+                return f"Added {sample_id} to cases.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in cases."
         else:
             if self.selection.add_control(selected):
-                return f"Added {sample_id} to controls. Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
+                return f"Added {sample_id} to controls.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in controls."
     
