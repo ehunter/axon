@@ -12,6 +12,12 @@ from sqlalchemy import select, func, or_
 from axon.db.models import Sample
 from axon.matching.matcher import SampleMatcher
 from axon.matching.statistics import run_balance_tests
+from axon.agent.icd_mapping import (
+    extract_copathology_info,
+    has_copathology,
+    CopathologyInfo,
+    COPATHOLOGY_CATEGORIES,
+)
 
 
 # Tool definitions for Anthropic API
@@ -62,6 +68,15 @@ TOOL_DEFINITIONS = [
                 "min_braak_stage": {
                     "type": "integer",
                     "description": "Minimum Braak NFT stage (0-6). Samples must have Braak data to match."
+                },
+                "exclude_copathologies": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Exclude samples with these co-pathology categories: Lewy, CAA, TDP-43, Vascular, FTD, ALS, Prion, Huntington, Stroke"
+                },
+                "require_no_copathologies": {
+                    "type": "boolean",
+                    "description": "Only return samples without any significant co-pathologies"
                 },
                 "limit": {
                     "type": "integer",
@@ -337,7 +352,9 @@ class ToolHandler:
         
         limit = params.get("limit", 20)
         
-        if braak_filter:
+        # Fetch more samples if we'll be filtering by Braak or co-pathologies
+        copath_filter = params.get("exclude_copathologies") or params.get("require_no_copathologies")
+        if braak_filter or copath_filter:
             query = query.limit(500)  # Fetch more to filter
         else:
             query = query.limit(limit)
@@ -358,10 +375,33 @@ class ToolHandler:
                     if stage_num is not None and stage_num >= min_stage:
                         filtered_samples.append(s)
             
-            samples = filtered_samples[:limit]  # Apply limit after filtering
+            samples = filtered_samples
             
             if not samples:
                 return f"No samples found with Braak stage data{' >= ' + str(min_stage) if min_stage > 0 else ''}. Try searching Mt. Sinai samples which have better Braak staging data."
+        
+        # Post-filter for co-pathology exclusions
+        exclude_copaths = params.get("exclude_copathologies")
+        require_no_copaths = params.get("require_no_copathologies", False)
+        
+        if exclude_copaths or require_no_copaths:
+            filtered_samples = []
+            excluded_count = 0
+            
+            for s in samples:
+                if not self._sample_has_excluded_copathologies(s, exclude_copaths, require_no_copaths):
+                    filtered_samples.append(s)
+                else:
+                    excluded_count += 1
+            
+            samples = filtered_samples
+            
+            if not samples:
+                filter_desc = "without co-pathologies" if require_no_copaths else f"excluding {', '.join(exclude_copaths)}"
+                return f"No samples found {filter_desc}. {excluded_count} samples were excluded due to co-pathologies. Consider relaxing co-pathology requirements."
+        
+        # Apply limit after all filtering
+        samples = samples[:limit]
         
         if not samples:
             return "No samples found matching the specified criteria."
@@ -645,45 +685,36 @@ class ToolHandler:
         return None
     
     def _extract_copathologies(self, sample: Sample) -> str:
-        """Extract co-pathology information from raw_data and extended_data."""
-        copaths = []
+        """Extract co-pathology information using ICD codes and neuropathology metrics.
         
-        # Check raw_data first (primary source)
-        if sample.raw_data:
-            raw = sample.raw_data
-            
-            # Thal Phase (amyloid plaques)
-            thal = raw.get("Thal Phase") or raw.get("Thal Value")
-            if thal and thal not in ("No Results Reported", "Not Assessed", ""):
-                copaths.append(f"Thal: {thal}")
-            
-            # CERAD Score
-            cerad = raw.get("CERAD Score") or raw.get("CERAD Value")
-            if cerad and cerad not in ("No Results Reported", "Not Assessed", ""):
-                copaths.append(f"CERAD: {cerad}")
-            
-            # Check neuropathology diagnosis for co-pathologies
-            neuropath = raw.get("neuropathology_diagnosis") or ""
-            if "lewy" in neuropath.lower():
-                copaths.append("Lewy bodies noted")
-            if "amyloid angiopathy" in neuropath.lower():
-                copaths.append("CAA noted")
+        Uses NIH NeuroBioBank ICD-10 categorization system.
+        """
+        copath_info = self._get_copathology_info(sample)
+        return copath_info.summary
+    
+    def _get_copathology_info(self, sample: Sample) -> CopathologyInfo:
+        """Get structured co-pathology information for a sample."""
+        return extract_copathology_info(
+            sample_raw_data=sample.raw_data,
+            sample_extended_data=sample.extended_data,
+            primary_diagnosis_code=sample.primary_diagnosis_code,
+        )
+    
+    def _sample_has_excluded_copathologies(
+        self, 
+        sample: Sample, 
+        exclude_categories: list[str] | None,
+        require_no_copathologies: bool = False,
+    ) -> bool:
+        """Check if sample should be excluded based on co-pathology filters."""
+        copath_info = self._get_copathology_info(sample)
         
-        # Check extended_data as fallback
-        if sample.extended_data:
-            ext = sample.extended_data
-            
-            # TDP-43
-            tdp43 = ext.get("tdp43") or ext.get("tdp_43")
-            if tdp43 and str(tdp43).lower() not in ("none", "no", "negative", "0", ""):
-                copaths.append(f"TDP-43: {tdp43}")
-            
-            # Synucleinopathy
-            syn = ext.get("synucleinopathy") or ext.get("lewy_bodies")
-            if syn and str(syn).lower() not in ("none", "no", "negative", "0", ""):
-                copaths.append(f"Synucleinopathy: {syn}")
+        if require_no_copathologies:
+            # Check if sample has ANY significant co-pathology
+            return has_copathology(copath_info, list(COPATHOLOGY_CATEGORIES))
         
-        if copaths:
-            return ", ".join(copaths)
-        return "Not recorded"
+        if exclude_categories:
+            return has_copathology(copath_info, exclude_categories)
+        
+        return False
 
