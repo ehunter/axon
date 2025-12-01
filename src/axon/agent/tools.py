@@ -55,6 +55,14 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Filter by brain bank source"
                 },
+                "has_braak_data": {
+                    "type": "boolean",
+                    "description": "Only return samples that have Braak stage data available"
+                },
+                "min_braak_stage": {
+                    "type": "integer",
+                    "description": "Minimum Braak NFT stage (0-6). Samples must have Braak data to match."
+                },
                 "limit": {
                     "type": "integer",
                     "description": "Maximum number of samples to return (default 20)"
@@ -314,18 +322,46 @@ class ToolHandler:
         if params.get("source_bank"):
             query = query.where(Sample.source_bank.ilike(f"%{params['source_bank']}%"))
         
-        # Require valid data for matching
-        query = query.where(
-            Sample.donor_age.isnot(None),
-            Sample.rin_score.isnot(None),
-            Sample.postmortem_interval_hours.isnot(None),
-        )
+        # Require valid data for matching (age is always required)
+        query = query.where(Sample.donor_age.isnot(None))
+        
+        # If filtering by Braak, relax RIN/PMI requirements since Mt. Sinai has Braak but no RIN
+        braak_filter = params.get("has_braak_data") or params.get("min_braak_stage") is not None
+        
+        if not braak_filter:
+            # For regular searches, require RIN and PMI for quality matching
+            query = query.where(
+                Sample.rin_score.isnot(None),
+                Sample.postmortem_interval_hours.isnot(None),
+            )
         
         limit = params.get("limit", 20)
-        query = query.limit(limit)
+        
+        if braak_filter:
+            query = query.limit(500)  # Fetch more to filter
+        else:
+            query = query.limit(limit)
         
         result = await self.db_session.execute(query)
         samples = result.scalars().all()
+        
+        # Post-filter for Braak stage if requested (JSONB filtering is complex, do it in Python)
+        if braak_filter:
+            filtered_samples = []
+            min_stage = params.get("min_braak_stage", 0)
+            
+            for s in samples:
+                braak_str = self._extract_braak(s)
+                if braak_str:
+                    # Extract numeric stage from strings like "NFT Stage VI (B3)" or "Stage III (B2)"
+                    stage_num = self._parse_braak_stage_number(braak_str)
+                    if stage_num is not None and stage_num >= min_stage:
+                        filtered_samples.append(s)
+            
+            samples = filtered_samples[:limit]  # Apply limit after filtering
+            
+            if not samples:
+                return f"No samples found with Braak stage data{' >= ' + str(min_stage) if min_stage > 0 else ''}. Try searching Mt. Sinai samples which have better Braak staging data."
         
         if not samples:
             return "No samples found matching the specified criteria."
@@ -582,6 +618,29 @@ class ToolHandler:
         # Also check extended_data as fallback
         if sample.extended_data:
             return sample.extended_data.get("braak_stage") or sample.extended_data.get("braak")
+        
+        return None
+    
+    def _parse_braak_stage_number(self, braak_str: str) -> int | None:
+        """Parse numeric Braak stage from strings like 'NFT Stage VI (B3)' or 'Stage III (B2)'."""
+        if not braak_str:
+            return None
+        
+        import re
+        braak_upper = braak_str.upper()
+        
+        # Try to find Roman numeral stage patterns
+        # Order matters: check longer patterns first (VI before V, III before II before I)
+        stage_match = re.search(r'STAGE\s+(VI|IV|V|III|II|I|0)', braak_upper)
+        if stage_match:
+            roman = stage_match.group(1)
+            roman_to_int = {'0': 0, 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6}
+            return roman_to_int.get(roman)
+        
+        # Try PD stage patterns like "PD Stage 4"
+        pd_match = re.search(r'PD\s+STAGE\s+(\d)', braak_upper)
+        if pd_match:
+            return int(pd_match.group(1))
         
         return None
     
