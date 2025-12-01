@@ -349,17 +349,91 @@ class ChatAgent:
     
     def _should_retrieve(self, message: str) -> bool:
         """Determine if we should retrieve samples for this message."""
+        message_lower = message.lower().strip()
+        
         # Skip retrieval for simple greetings or meta-questions
         skip_patterns = [
             "hello", "hi", "hey", "thanks", "thank you",
             "bye", "goodbye", "help", "what can you do",
         ]
-        message_lower = message.lower().strip()
         
-        if len(message_lower) < 10:
-            return message_lower not in skip_patterns
+        if message_lower in skip_patterns:
+            return False
+        
+        # Check if this is a short conversational response to the agent's question
+        if self._is_conversational_response(message):
+            return False
         
         return True
+    
+    def _is_conversational_response(self, message: str) -> bool:
+        """Check if message is a short response to the agent's previous question.
+        
+        This prevents the system from running semantic search on responses like
+        "yes", "no", "okay" when the agent asked a clarifying question.
+        """
+        message_lower = message.lower().strip()
+        
+        # Remove trailing punctuation for matching
+        message_clean = message_lower.rstrip('?!.,')
+        
+        # Short affirmative/negative/conversational responses
+        conversational_responses = {
+            # Affirmative
+            "yes", "yeah", "yep", "yup", "sure", "ok", "okay", "k",
+            "correct", "right", "exactly", "absolutely", "definitely",
+            "of course", "certainly", "indeed", "agreed", "affirmative",
+            "that's right", "that's correct", "sounds good", "works for me",
+            "please", "go ahead", "continue", "proceed",
+            "i do", "i would", "i am", "i will", "we do", "we would",
+            
+            # Negative
+            "no", "nope", "nah", "not really", "no thanks", "negative",
+            "i don't", "i wouldn't", "i'm not", "we don't",
+            "not sure", "i don't know", "unsure", "maybe", "perhaps",
+            
+            # Clarifications
+            "both", "either", "neither", "all of them", "none of them",
+            "the first one", "the second one", "the latter", "the former",
+            
+            # Numbers (for quantity responses)
+            "one", "two", "three", "four", "five", "six", "seven", "eight",
+            "nine", "ten", "twelve", "fifteen", "twenty", "twenty-four",
+        }
+        
+        # Check if this is a conversational response
+        is_conversational = (
+            message_clean in conversational_responses or
+            message_lower in conversational_responses or
+            # Also match numeric responses like "12", "6-8", etc.
+            message_clean.replace("-", "").replace(" ", "").isdigit()
+        )
+        
+        # Only skip retrieval if the last assistant message was a question
+        if is_conversational and self._last_assistant_asked_question():
+            return True
+        
+        # Also handle slightly longer conversational responses
+        # e.g., "yes please", "no I don't", "yes that's fine"
+        if len(message_lower) < 40:
+            for response in conversational_responses:
+                if message_lower.startswith(response + " ") or message_lower.startswith(response + ","):
+                    if self._last_assistant_asked_question():
+                        return True
+        
+        return False
+    
+    def _last_assistant_asked_question(self) -> bool:
+        """Check if the last assistant message ended with a question."""
+        # Look for the most recent assistant message
+        for msg in reversed(self.conversation.messages):
+            if msg.role == "assistant":
+                content = msg.content.strip()
+                # Check if it ends with a question mark
+                # Also handle cases where there might be trailing formatting
+                last_sentence = content.split('\n')[-1].strip()
+                return '?' in last_sentence[-50:] if len(last_sentence) > 50 else '?' in last_sentence
+        return False
     
     async def _get_response(
         self,
