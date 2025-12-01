@@ -5,14 +5,16 @@ Claude can ONLY access data through verified database queries.
 This architectural constraint prevents hallucination.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import AsyncGenerator
 
 from anthropic import AsyncAnthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from axon.agent.tools import TOOL_DEFINITIONS, ToolHandler
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """You are Axon, an expert brain bank research assistant with deep knowledge of neuroscience, neuropathology, and tissue banking. Your role is to help researchers find optimal brain tissue samples for their studies.
@@ -239,8 +241,10 @@ class ToolBasedChatAgent:
         
         while iteration < max_iterations:
             iteration += 1
+            logger.debug(f"Tool call iteration {iteration}")
             
             # Call Claude
+            logger.debug("Calling Claude API...")
             response = await self.client.messages.create(
                 model=self.model,
                 max_tokens=4096,
@@ -248,6 +252,7 @@ class ToolBasedChatAgent:
                 tools=TOOL_DEFINITIONS,
                 messages=messages,
             )
+            logger.debug(f"Claude responded with stop_reason: {response.stop_reason}")
             
             # Check if we need to handle tool calls
             if response.stop_reason == "tool_use":
@@ -263,10 +268,12 @@ class ToolBasedChatAgent:
                         })
                     elif block.type == "tool_use":
                         # Execute the tool
+                        logger.debug(f"Executing tool: {block.name} with input: {block.input}")
                         tool_result = await self.tool_handler.handle_tool_call(
                             block.name,
                             block.input
                         )
+                        logger.debug(f"Tool {block.name} returned {len(tool_result)} chars")
                         
                         assistant_content.append({
                             "type": "tool_use",
