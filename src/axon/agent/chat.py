@@ -22,6 +22,7 @@ from axon.agent.database_queries import (
 )
 from axon.db.models import Sample
 from axon.rag.retrieval import ContextBuilder, RAGRetriever, RetrievedSample
+from axon.matching.service import MatchingService, MatchingCriteria, format_match_result_for_agent
 
 
 @dataclass
@@ -96,12 +97,90 @@ class ChatAgent:
         self.client = AsyncAnthropic(api_key=anthropic_api_key)
         self.model = model
         self.conversation = Conversation(id="default")
+        
+        # Sample matching
+        self.matching_service = MatchingService(db_session)
+        self.matching_criteria = MatchingCriteria()
     
     def new_conversation(self) -> None:
         """Start a new conversation."""
         self.conversation = Conversation(
             id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         )
+        # Reset matching criteria for new conversation
+        self.matching_criteria = MatchingCriteria()
+    
+    async def run_matching(self) -> str:
+        """Run the matching algorithm with current criteria.
+        
+        Returns:
+            Formatted result string for display
+        """
+        if not self.matching_criteria.is_complete_for_matching():
+            return "I don't have enough information to find matched samples yet. Let me ask a few more questions."
+        
+        result = await self.matching_service.find_matched_samples(self.matching_criteria)
+        return format_match_result_for_agent(result)
+    
+    async def get_matching_preview(self) -> str:
+        """Get a preview of available samples for current criteria.
+        
+        Returns:
+            Formatted preview string
+        """
+        return await self.matching_service.get_matching_preview(self.matching_criteria)
+    
+    def update_matching_criteria(
+        self,
+        diagnosis: str | None = None,
+        n_cases: int | None = None,
+        needs_controls: bool | None = None,
+        n_controls: int | None = None,
+        age_matched: bool | None = None,
+        min_age: int | None = None,
+        max_age: int | None = None,
+        brain_region: str | None = None,
+        min_rin: float | None = None,
+        max_pmi: float | None = None,
+        exclude_co_pathologies: bool | None = None,
+    ) -> None:
+        """Update matching criteria from conversation.
+        
+        Args:
+            diagnosis: Disease diagnosis for cases
+            n_cases: Number of cases needed
+            needs_controls: Whether controls are needed
+            n_controls: Number of controls needed
+            age_matched: Whether controls should be age-matched
+            min_age: Minimum donor age
+            max_age: Maximum donor age
+            brain_region: Required brain region
+            min_rin: Minimum RIN score
+            max_pmi: Maximum PMI in hours
+            exclude_co_pathologies: Whether to exclude co-pathologies
+        """
+        if diagnosis is not None:
+            self.matching_criteria.diagnosis = diagnosis
+        if n_cases is not None:
+            self.matching_criteria.n_cases = n_cases
+        if needs_controls is not None:
+            self.matching_criteria.needs_controls = needs_controls
+        if n_controls is not None:
+            self.matching_criteria.n_controls = n_controls
+        if age_matched is not None:
+            self.matching_criteria.age_matched = age_matched
+        if min_age is not None:
+            self.matching_criteria.min_age = min_age
+        if max_age is not None:
+            self.matching_criteria.max_age = max_age
+        if brain_region is not None:
+            self.matching_criteria.brain_region = brain_region
+        if min_rin is not None:
+            self.matching_criteria.min_rin = min_rin
+        if max_pmi is not None:
+            self.matching_criteria.max_pmi = max_pmi
+        if exclude_co_pathologies is not None:
+            self.matching_criteria.exclude_co_pathologies = exclude_co_pathologies
     
     async def chat(
         self,
