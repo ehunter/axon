@@ -1100,8 +1100,9 @@ JSON:"""
         
         answer = response.content[0].text
         
-        # Check if Claude is ready to search (and we haven't provided data yet)
-        if self._response_indicates_search_ready(answer) and not samples:
+        # Check if Claude is ready to search - ALWAYS trigger if agent announces search
+        # (even if samples were provided earlier - agent might be searching for controls or refining)
+        if self._response_indicates_search_ready(answer):
             # Claude wants to search - do actual search and regenerate
             search_context = await self._do_criteria_based_search(20)
             
@@ -1167,6 +1168,17 @@ JSON:"""
             "searching for",
             "let me look for",
             "i'll look for samples",
+            "i'll find",
+            "i will find",
+            "let me get",
+            "i'll get",
+            "search for controls",
+            "find controls",
+            "look for controls",
+            "search for samples",
+            "find samples",
+            "i need to search",
+            "should i search",
         ]
         
         return any(phrase in response_lower for phrase in ready_phrases)
