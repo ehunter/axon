@@ -208,11 +208,19 @@ class ChatAgent:
         # Check if this is an aggregate/statistics question
         stats_context = await self._get_stats_context(message)
         
-        # Retrieve relevant samples if needed (and not a stats question)
+        # Check if agent announced a search and user is confirming
+        search_context = None
+        if self._agent_announced_search() and self._is_confirmation(message):
+            # Extract criteria from conversation and do a proper search
+            search_context = await self._do_criteria_based_search(num_samples)
+        
+        # Retrieve relevant samples if needed (and not a stats question or criteria search)
         retrieved: list[RetrievedSample] = []
-        if retrieve_samples and self._should_retrieve(message) and not stats_context:
+        if retrieve_samples and self._should_retrieve(message) and not stats_context and not search_context:
+            # Build a better query from conversation context, not just the last message
+            query = self._build_search_query(message)
             retrieved = await self.retriever.retrieve(
-                query=message,
+                query=query,
                 limit=num_samples,
                 **filters,
             )
@@ -226,6 +234,8 @@ class ChatAgent:
         # Add context about retrieved samples or stats to the last user message
         if stats_context:
             messages[-1]["content"] = f"{stats_context}\n\n---\n\n**User Query:** {message}"
+        elif search_context:
+            messages[-1]["content"] = f"{search_context}\n\n---\n\n**User Query:** {message}"
         elif samples:
             context = self.context_builder.build_context(
                 query=message,
@@ -238,6 +248,227 @@ class ChatAgent:
             return self._stream_response(messages, samples)
         else:
             return await self._get_response(messages, samples)
+    
+    def _agent_announced_search(self) -> bool:
+        """Check if the agent's last message announced it would search for samples."""
+        for msg in reversed(self.conversation.messages):
+            if msg.role == "assistant":
+                content = msg.content.lower()
+                search_phrases = [
+                    "let me search",
+                    "let me find",
+                    "i'll search",
+                    "i will search",
+                    "i'll find",
+                    "i will find",
+                    "searching for",
+                    "let me look for",
+                    "i'll look for",
+                    "let me get",
+                    "finding samples",
+                    "find samples that match",
+                    "search for samples",
+                    "present you with",
+                    "present the best options",
+                ]
+                return any(phrase in content for phrase in search_phrases)
+        return False
+    
+    def _is_confirmation(self, message: str) -> bool:
+        """Check if message is a simple confirmation."""
+        confirmations = {
+            "ok", "okay", "k", "sure", "yes", "yeah", "yep", "yup",
+            "go ahead", "please", "proceed", "continue", "sounds good",
+            "do it", "yes please", "go for it", "alright", "all right",
+            "perfect", "great", "good", "fine", "that's fine",
+        }
+        return message.lower().strip().rstrip('!.,') in confirmations
+    
+    def _build_search_query(self, message: str) -> str:
+        """Build a search query from conversation context.
+        
+        Instead of searching with just the last message (e.g., "ok"),
+        builds a composite query from key criteria mentioned in conversation.
+        """
+        # If the message itself is substantive, use it
+        if len(message) > 20 and not self._is_confirmation(message):
+            return message
+        
+        # Otherwise, extract key terms from recent conversation
+        key_terms = []
+        
+        # Look through recent messages for criteria
+        for msg in self.conversation.messages[-10:]:
+            content = msg.content.lower()
+            
+            # Disease terms
+            diseases = ["alzheimer", "parkinson", "als", "huntington", "schizophrenia", "dementia"]
+            for disease in diseases:
+                if disease in content and disease not in key_terms:
+                    key_terms.append(disease)
+            
+            # Brain regions
+            regions = ["frontal", "temporal", "hippocampus", "cortex", "cerebellum", "parietal"]
+            for region in regions:
+                if region in content and region not in key_terms:
+                    key_terms.append(region)
+            
+            # Pathology staging
+            if "braak" in content:
+                # Try to extract Braak stage
+                import re
+                braak_match = re.search(r'braak\s*(?:stage)?\s*([iv]+|\d+)', content, re.IGNORECASE)
+                if braak_match:
+                    key_terms.append(f"Braak {braak_match.group(1)}")
+            
+            # Quality metrics
+            if "rin" in content and "rin" not in key_terms:
+                key_terms.append("high RIN")
+            
+            # Tissue type
+            if "frozen" in content:
+                key_terms.append("frozen tissue")
+            elif "fixed" in content:
+                key_terms.append("fixed tissue")
+        
+        if key_terms:
+            return " ".join(key_terms)
+        
+        # Fallback to original message
+        return message
+    
+    async def _do_criteria_based_search(self, limit: int = 20) -> str:
+        """Perform a search based on criteria extracted from conversation.
+        
+        This is triggered when the agent announced a search and user confirmed.
+        Returns formatted context for Claude to present results.
+        """
+        # Extract criteria from conversation using Claude
+        criteria = await self._extract_criteria_from_conversation()
+        
+        if not criteria:
+            # Fallback to keyword-based search
+            query = self._build_search_query("")
+            retrieved = await self.retriever.retrieve(query=query, limit=limit)
+            samples = [r.sample for r in retrieved]
+            scores = [r.score for r in retrieved]
+            return self.context_builder.build_context(query=query, samples=samples, scores=scores)
+        
+        # Use the matching service for a proper database query
+        from axon.matching.candidates import find_case_candidates, find_control_candidates
+        
+        context_parts = ["## Search Results Based on Your Criteria\n"]
+        context_parts.append(f"**Searching for:** {criteria.get('diagnosis', 'samples')}")
+        
+        # Find cases
+        cases = await find_case_candidates(
+            self.db_session,
+            diagnosis=criteria.get('diagnosis'),
+            min_age=criteria.get('min_age'),
+            max_age=criteria.get('max_age'),
+            brain_region=criteria.get('brain_region'),
+            min_rin=criteria.get('min_rin'),
+            max_pmi=criteria.get('max_pmi'),
+            limit=limit,
+        )
+        
+        if cases:
+            context_parts.append(f"\n**Found {len(cases)} matching case samples:**\n")
+            for i, case in enumerate(cases[:10], 1):
+                context_parts.append(
+                    f"{i}. **{case.external_id}** ({case.source_bank})\n"
+                    f"   - Diagnosis: {case.diagnosis}\n"
+                    f"   - Age: {case.age}, Sex: {case.sex}\n"
+                    f"   - RIN: {case.rin}, PMI: {case.pmi}h\n"
+                    f"   - Brain region: {case.brain_region}\n"
+                )
+            if len(cases) > 10:
+                context_parts.append(f"\n... and {len(cases) - 10} more samples available.\n")
+        else:
+            context_parts.append("\n**No cases found matching all criteria.**\n")
+            context_parts.append("Consider relaxing some constraints.\n")
+        
+        # Find controls if needed
+        if criteria.get('needs_controls'):
+            controls = await find_control_candidates(
+                self.db_session,
+                min_age=criteria.get('min_age') if criteria.get('age_matched') else None,
+                max_age=criteria.get('max_age') if criteria.get('age_matched') else None,
+                brain_region=criteria.get('brain_region'),
+                min_rin=criteria.get('min_rin'),
+                max_pmi=criteria.get('max_pmi'),
+                limit=limit,
+            )
+            
+            if controls:
+                context_parts.append(f"\n**Found {len(controls)} matching control samples:**\n")
+                for i, ctrl in enumerate(controls[:10], 1):
+                    context_parts.append(
+                        f"{i}. **{ctrl.external_id}** ({ctrl.source_bank})\n"
+                        f"   - Age: {ctrl.age}, Sex: {ctrl.sex}\n"
+                        f"   - RIN: {ctrl.rin}, PMI: {ctrl.pmi}h\n"
+                    )
+                if len(controls) > 10:
+                    context_parts.append(f"\n... and {len(controls) - 10} more controls available.\n")
+            else:
+                context_parts.append("\n**No control samples found matching criteria.**\n")
+        
+        return "\n".join(context_parts)
+    
+    async def _extract_criteria_from_conversation(self) -> dict | None:
+        """Use Claude to extract search criteria from the conversation."""
+        # Build a summary of the conversation for extraction
+        conversation_text = "\n".join([
+            f"{msg.role.upper()}: {msg.content}"
+            for msg in self.conversation.messages[-20:]
+        ])
+        
+        extraction_prompt = f"""Extract the sample search criteria from this conversation.
+Return ONLY a JSON object with these fields (use null for unspecified):
+
+{{
+    "diagnosis": "disease name or null",
+    "needs_controls": true/false,
+    "age_matched": true/false,
+    "min_age": number or null,
+    "max_age": number or null,
+    "brain_region": "region name or null",
+    "min_rin": number or null,
+    "max_pmi": number or null,
+    "braak_min": "stage or null",
+    "braak_max": "stage or null",
+    "tissue_type": "frozen/fixed or null",
+    "exclude_co_pathologies": true/false,
+    "equal_sex": true/false
+}}
+
+Conversation:
+{conversation_text}
+
+JSON:"""
+        
+        try:
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=500,
+                messages=[{"role": "user", "content": extraction_prompt}],
+            )
+            
+            import json
+            import re
+            
+            # Extract JSON from response
+            text = response.content[0].text
+            # Find JSON object in response
+            json_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
+            if json_match:
+                criteria = json.loads(json_match.group())
+                # Filter out null values
+                return {k: v for k, v in criteria.items() if v is not None}
+        except Exception as e:
+            print(f"Error extracting criteria: {e}")
+        
+        return None
     
     async def _get_stats_context(self, message: str) -> str | None:
         """Check if message is asking for statistics and return context if so."""
