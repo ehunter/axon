@@ -971,10 +971,88 @@ JSON:"""
         
         answer = response.content[0].text
         
+        # Check if Claude is ready to search (and we haven't provided data yet)
+        if self._response_indicates_search_ready(answer) and not samples:
+            # Claude wants to search - do actual search and regenerate
+            search_context = await self._do_criteria_based_search(20)
+            
+            if search_context and "No cases found" not in search_context:
+                # Regenerate response with actual search data
+                messages[-1]["content"] = messages[-1]["content"] + f"\n\n{search_context}"
+                
+                response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2000,
+                    system=SYSTEM_PROMPT,
+                    messages=messages,
+                )
+                answer = response.content[0].text
+        
+        # Check if Claude is presenting samples but we didn't provide any (hallucination)
+        elif self._response_presents_samples(answer) and not samples and not self.last_search_context:
+            # Claude is hallucinating samples - do a search and regenerate
+            search_context = await self._do_criteria_based_search(20)
+            
+            if search_context:
+                # Add warning and regenerate with real data
+                messages[-1]["content"] = messages[-1]["content"] + f"\n\n{search_context}\n\n**IMPORTANT: Present ONLY the samples listed above. Do not invent any sample IDs.**"
+                
+                response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2000,
+                    system=SYSTEM_PROMPT,
+                    messages=messages,
+                )
+                answer = response.content[0].text
+        
         # Add assistant response to history
         self.conversation.add_message("assistant", answer, samples)
         
         return answer
+    
+    def _response_indicates_search_ready(self, response: str) -> bool:
+        """Check if Claude's response indicates it's ready to search."""
+        response_lower = response.lower()
+        
+        ready_phrases = [
+            "let me search",
+            "i'll search",
+            "i will search",
+            "let me find",
+            "i have your criteria",
+            "i have enough criteria",
+            "searching for",
+            "let me look for",
+            "i'll look for samples",
+        ]
+        
+        return any(phrase in response_lower for phrase in ready_phrases)
+    
+    def _response_presents_samples(self, response: str) -> bool:
+        """Check if Claude's response is presenting sample results."""
+        response_lower = response.lower()
+        
+        # Check for patterns that indicate sample presentation
+        presentation_phrases = [
+            "i found",
+            "here are",
+            "here's",
+            "found the following",
+            "matching samples",
+            "matched samples",
+            "cases and controls",
+            "alzheimer's samples",
+            "control samples",
+        ]
+        
+        has_presentation = any(phrase in response_lower for phrase in presentation_phrases)
+        
+        # Also check for sample ID patterns (numbers that look like IDs)
+        import re
+        has_sample_ids = bool(re.search(r'\*\*[A-Z0-9]{4,}\*\*', response))  # **ID123** pattern
+        has_numbered_list = bool(re.search(r'\d+\.\s+\*\*', response))  # "1. **" pattern
+        
+        return has_presentation and (has_sample_ids or has_numbered_list)
     
     async def _stream_response(
         self,
