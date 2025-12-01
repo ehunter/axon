@@ -586,11 +586,86 @@ JSON:"""
             if json_match:
                 criteria = json.loads(json_match.group())
                 # Filter out null values
-                return {k: v for k, v in criteria.items() if v is not None}
+                criteria = {k: v for k, v in criteria.items() if v is not None}
+                if criteria:
+                    return criteria
         except Exception as e:
-            print(f"Error extracting criteria: {e}")
+            print(f"Error extracting criteria via LLM: {e}")
         
-        return None
+        # Fallback: manually extract criteria from conversation
+        return self._extract_criteria_manually(conversation_text)
+    
+    def _extract_criteria_manually(self, conversation_text: str) -> dict | None:
+        """Fallback manual extraction of criteria from conversation."""
+        import re
+        
+        text_lower = conversation_text.lower()
+        criteria = {}
+        
+        # Extract diagnosis
+        if "alzheimer" in text_lower:
+            criteria["diagnosis"] = "Alzheimer"
+        elif "parkinson" in text_lower:
+            criteria["diagnosis"] = "Parkinson"
+        elif "huntington" in text_lower:
+            criteria["diagnosis"] = "Huntington"
+        elif "als" in text_lower or "amyotrophic" in text_lower:
+            criteria["diagnosis"] = "ALS"
+        
+        # Extract needs_controls
+        control_patterns = ["need control", "need controls", "also need control", "8 control", "12 control", "14 control"]
+        if any(p in text_lower for p in control_patterns):
+            criteria["needs_controls"] = True
+        
+        # Check for "yes" after "need controls" question
+        if "do you also need controls" in text_lower or "do you need controls" in text_lower:
+            if "user: yes" in text_lower or "\nyes\n" in text_lower:
+                criteria["needs_controls"] = True
+        
+        # Extract age matching
+        if "age-matched" in text_lower or "age matched" in text_lower:
+            criteria["age_matched"] = True
+        
+        # Extract age range
+        age_match = re.search(r'(\d+)\s*(?:and older|or older|\+|years? or older)', text_lower)
+        if age_match:
+            criteria["min_age"] = int(age_match.group(1))
+        
+        # Extract late onset preference
+        if "late onset" in text_lower or "late-onset" in text_lower:
+            if criteria.get("min_age") is None:
+                criteria["min_age"] = 65
+        
+        # Extract brain region
+        if "frontal" in text_lower or "front cortex" in text_lower:
+            criteria["brain_region"] = "frontal"
+        elif "hippocampus" in text_lower:
+            criteria["brain_region"] = "hippocampus"
+        elif "temporal" in text_lower:
+            criteria["brain_region"] = "temporal"
+        
+        # Extract RIN requirement
+        rin_match = re.search(r'rin\s*[>=]+\s*(\d+(?:\.\d+)?)', text_lower)
+        if rin_match:
+            criteria["min_rin"] = float(rin_match.group(1))
+        elif "rin > 6" in text_lower or "rin ≥ 6" in text_lower or "rin >= 6" in text_lower:
+            criteria["min_rin"] = 6.0
+        
+        # Extract tissue type for RNA-seq
+        if "rna seq" in text_lower or "rna-seq" in text_lower or "rnaseq" in text_lower:
+            criteria["tissue_type"] = "frozen"
+            if criteria.get("min_rin") is None:
+                criteria["min_rin"] = 6.0
+        
+        # Extract co-pathology preference
+        if "exclude co-patholog" in text_lower or "no co-patholog" in text_lower or "without co-patholog" in text_lower:
+            criteria["exclude_co_pathologies"] = True
+        
+        # Extract sex balance
+        if "equal number of male" in text_lower or "equal male" in text_lower or "equal sex" in text_lower:
+            criteria["equal_sex"] = True
+        
+        return criteria if criteria else None
     
     async def _get_stats_context(self, message: str) -> str | None:
         """Check if message is asking for statistics and return context if so."""
@@ -792,11 +867,53 @@ JSON:"""
         if message_lower in skip_patterns:
             return False
         
+        # Skip retrieval for initial requirement statements
+        # These should trigger Q&A, not immediate search
+        if self._is_initial_requirement(message):
+            return False
+        
         # Check if this is a short conversational response to the agent's question
         if self._is_conversational_response(message):
             return False
         
         return True
+    
+    def _is_initial_requirement(self, message: str) -> bool:
+        """Check if message is an initial statement of requirements.
+        
+        These messages should NOT trigger a search - the agent should
+        ask clarifying questions first.
+        """
+        message_lower = message.lower().strip()
+        
+        # Initial requirement patterns
+        requirement_patterns = [
+            "i need",
+            "i'm looking for",
+            "i am looking for",
+            "i want",
+            "i'd like",
+            "i would like",
+            "can you help me find",
+            "looking for",
+            "we need",
+            "our lab needs",
+            "my study requires",
+        ]
+        
+        # Check if this looks like an initial requirement
+        is_requirement = any(message_lower.startswith(p) for p in requirement_patterns)
+        
+        # Also check for sample-related keywords
+        sample_keywords = ["sample", "tissue", "brain", "control", "case"]
+        has_sample_keyword = any(kw in message_lower for kw in sample_keywords)
+        
+        # If it's a requirement statement with sample keywords, and this is early in conversation
+        # (fewer than 4 exchanges), don't search yet - let agent ask questions
+        if is_requirement and has_sample_keyword and len(self.conversation.messages) < 4:
+            return True
+        
+        return False
     
     def _is_conversational_response(self, message: str) -> bool:
         """Check if message is a response to the agent's previous question.
@@ -976,9 +1093,23 @@ JSON:"""
             # Claude wants to search - do actual search and regenerate
             search_context = await self._do_criteria_based_search(20)
             
-            if search_context and "No cases found" not in search_context:
+            # If criteria-based search failed, try keyword-based search as fallback
+            if not search_context or "No cases found" in search_context:
+                query = self._build_search_query("")
+                if query and len(query) > 10:
+                    retrieved = await self.retriever.retrieve(query=query, limit=20)
+                    if retrieved:
+                        fallback_samples = [r.sample for r in retrieved]
+                        fallback_scores = [r.score for r in retrieved]
+                        search_context = self.context_builder.build_context(
+                            query=query,
+                            samples=fallback_samples,
+                            scores=fallback_scores,
+                        )
+            
+            if search_context:
                 # Regenerate response with actual search data
-                messages[-1]["content"] = messages[-1]["content"] + f"\n\n{search_context}"
+                messages[-1]["content"] = messages[-1]["content"] + f"\n\n{search_context}\n\n**IMPORTANT: Present ONLY the samples listed above. Do not invent any sample IDs or data.**"
                 
                 response = await self.client.messages.create(
                     model=self.model,
