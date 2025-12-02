@@ -9,10 +9,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Brain className="h-8 w-8 text-primary" />
-                <div className="absolute inset-0 blur-lg bg-primary/30" />
-              </div>
+              <Brain className="h-8 w-8" />
               <span className="text-xl font-bold">Axon</span>
             </div>
             <div className="flex items-center gap-4">
@@ -24,7 +21,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/login"
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
                 Get Started
               </Link>
@@ -37,16 +34,14 @@ export default function Home() {
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-5xl mx-auto text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6 animate-fade-in">
+          <div className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-medium mb-6 animate-fade-in">
             <Sparkles className="h-4 w-4" />
             AI-Powered Brain Bank Discovery
           </div>
           
           {/* Headline */}
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up">
-            Find the perfect
-            <span className="text-gradient"> brain tissue samples </span>
-            for your research
+            Find the perfect brain tissue samples for your research
           </h1>
           
           {/* Subheadline */}
@@ -60,14 +55,14 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up stagger-2">
             <Link
               href="/chat"
-              className="group flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all glow hover:glow-lg"
+              className="group flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity"
             >
               Start Searching
               <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               href="/samples"
-              className="flex items-center gap-2 bg-secondary text-secondary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-secondary/80 transition-colors"
+              className="flex items-center gap-2 bg-secondary text-secondary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-accent transition-colors"
             >
               Browse Samples
             </Link>
@@ -75,20 +70,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Visual Element - Neural Network Grid */}
+      {/* Visual Element - Minimal line */}
       <section className="py-12 px-4 overflow-hidden">
         <div className="max-w-6xl mx-auto">
-          <div className="relative h-32 flex items-center justify-center">
-            {/* Animated dots representing neural connections */}
-            <div className="absolute inset-0 flex items-center justify-center gap-8 opacity-30">
-              {[...Array(7)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full bg-primary animate-pulse"
-                  style={{ animationDelay: `${i * 0.2}s` }}
-                />
-              ))}
-            </div>
+          <div className="relative h-16 flex items-center justify-center">
             <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
           </div>
         </div>
@@ -149,7 +134,7 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 px-4 border-y border-border bg-surface/50">
+      <section className="py-20 px-4 border-y border-border">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <StatCard value="50,000+" label="Samples Available" />
@@ -171,7 +156,7 @@ export default function Home() {
           </p>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all glow"
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:opacity-90 transition-opacity"
           >
             Get Started Free
             <ArrowRight className="h-5 w-5" />
@@ -183,7 +168,7 @@ export default function Home() {
       <footer className="border-t border-border py-12 px-4">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Brain className="h-6 w-6 text-primary" />
+            <Brain className="h-6 w-6" />
             <span className="font-semibold">Axon</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -211,7 +196,7 @@ function FeatureCard({
       className="group p-6 rounded-xl border border-border bg-card card-interactive animate-fade-in-up"
       style={{ animationDelay: `${delay * 0.1}s` }}
     >
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-secondary text-secondary-foreground mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
         {icon}
       </div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -223,7 +208,7 @@ function FeatureCard({
 function StatCard({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <div className="text-4xl font-bold text-gradient mb-2">{value}</div>
+      <div className="text-4xl font-bold mb-2">{value}</div>
       <div className="text-muted-foreground text-sm">{label}</div>
     </div>
   );
