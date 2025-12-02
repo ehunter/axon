@@ -349,3 +349,4 @@ class TestGetSelectionSummary:
         assert summary["control_count"] == 2
         assert summary["total"] == 5
 
+
