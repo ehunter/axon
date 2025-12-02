@@ -3,6 +3,7 @@
 import { Menu, Bell, User, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
   const { user, signOut } = useAuth();
@@ -32,6 +33,9 @@ export function Header() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
+        {/* Theme toggle */}
+        <ThemeToggle />
+
         {/* Notifications */}
         <button className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
           <Bell className="h-5 w-5" />
