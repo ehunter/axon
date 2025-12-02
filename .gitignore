@@ -59,3 +59,5 @@ logs/
 # Alembic
 alembic/versions/*.pyc
 
+apps/web/node_modules/
+apps/web/.next/
