@@ -8,13 +8,40 @@ This architectural constraint prevents hallucination.
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import TYPE_CHECKING, AsyncGenerator
 
 from anthropic import AsyncAnthropic
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from axon.agent.tools import TOOL_DEFINITIONS, ToolHandler
 
+if TYPE_CHECKING:
+    from axon.agent.persistence import ConversationService
+
 logger = logging.getLogger(__name__)
+
+
+class StreamEventType(Enum):
+    """Types of events emitted during streaming."""
+    TOOL_START = "tool_start"      # Tool execution starting
+    TOOL_END = "tool_end"          # Tool execution completed
+    TEXT = "text"                  # Text chunk from response
+    DONE = "done"                  # Stream complete
+
+
+@dataclass
+class StreamEvent:
+    """An event emitted during streaming chat.
+    
+    Attributes:
+        type: The type of event
+        content: Event content (text chunk, tool name, etc.)
+        tool_input: For TOOL_START, the tool input parameters
+    """
+    type: StreamEventType
+    content: str = ""
+    tool_input: dict | None = None
 
 
 SYSTEM_PROMPT = """You are Axon, an expert brain bank research assistant with deep knowledge of neuroscience, neuropathology, and tissue banking. Your role is to help researchers find optimal brain tissue samples for their studies.
@@ -92,11 +119,13 @@ You have access to tools that query the actual database. You MUST use these tool
 
 - **search_samples**: Search for samples with specific criteria
 - **get_current_selection**: See what samples are currently selected
-- **add_to_selection**: Add a verified sample to the selection
+- **add_samples_to_selection**: Add multiple samples to selection at once (PREFERRED - use this when recommending samples)
+- **add_to_selection**: Add a single sample to the selection
 - **remove_from_selection**: Remove a sample from the selection
 - **get_selection_statistics**: Get statistical comparison of cases vs controls
 - **get_sample_details**: Get details for a specific sample
 - **get_database_statistics**: Get aggregate database statistics
+- **search_knowledge**: Search the knowledge base for information about tissue quality, experimental techniques, and neuroscience concepts
 
 ## CRITICAL: When User Needs BOTH Cases AND Controls
 
@@ -119,11 +148,24 @@ If the user needs BOTH disease cases AND controls, you MUST:
 
 ## Managing the Selection
 
-**To swap samples:**
+**CRITICAL: When presenting final samples to the user, you MUST add them to the selection:**
+1. After gathering all requirements and searching for samples
+2. Use **add_samples_to_selection** to add all recommended samples in ONE call (provide case_ids and control_ids arrays)
+3. This ensures samples are saved and can be retrieved when the user resumes the conversation
+
+Example: After finding 5 cases and 5 controls, call:
+```
+add_samples_to_selection(case_ids=["ID1", "ID2", ...], control_ids=["CTRL1", "CTRL2", ...])
+```
+
+**To swap individual samples:**
 1. Use remove_from_selection to remove the old sample
 2. Use add_to_selection to add the new sample
 3. Use get_current_selection to verify the swap worked
-4. Only confirm success AFTER verifying the selection
+
+**When user asks to see their selection:**
+- Use get_current_selection to retrieve the actual saved samples
+- Do NOT search again - show what's already in the selection
 
 **NEVER say "Done" or "Successfully completed" without first calling get_current_selection to verify.**
 
@@ -244,6 +286,7 @@ class ToolBasedChatAgent:
     """Chat agent that uses tools for all data access.
     
     This ensures Claude can ONLY present data that exists in the database.
+    Optionally supports conversation persistence to database.
     """
 
     def __init__(
@@ -251,6 +294,8 @@ class ToolBasedChatAgent:
         db_session: AsyncSession,
         anthropic_api_key: str,
         model: str = "claude-sonnet-4-20250514",
+        persistence_service: "ConversationService | None" = None,
+        embedding_api_key: str | None = None,
     ):
         """Initialize the tool-based chat agent.
         
@@ -258,25 +303,91 @@ class ToolBasedChatAgent:
             db_session: Database session
             anthropic_api_key: Anthropic API key for Claude
             model: Claude model to use
+            persistence_service: Optional service for saving conversations to DB
+            embedding_api_key: Optional OpenAI API key for knowledge base search
         """
         self.db_session = db_session
         self.client = AsyncAnthropic(api_key=anthropic_api_key)
         self.model = model
         self.conversation = Conversation(id="default")
-        self.tool_handler = ToolHandler(db_session)
+        self.persistence_service = persistence_service
+        self._db_conversation_id: str | None = None
+        self._embedding_api_key = embedding_api_key
+        
+        # Create tool handler with persistence support
+        self.tool_handler = ToolHandler(
+            db_session=db_session,
+            embedding_api_key=embedding_api_key,
+            persistence_service=persistence_service,
+            conversation_id=None,  # Will be set when conversation is created/loaded
+        )
     
-    def new_conversation(self) -> None:
-        """Start a new conversation."""
+    @property
+    def conversation_id(self) -> str | None:
+        """Get the current database conversation ID."""
+        return self._db_conversation_id
+    
+    async def new_conversation(self) -> str | None:
+        """Start a new conversation.
+        
+        Returns:
+            The new conversation's database ID if persistence is enabled, None otherwise.
+        """
         self.conversation = Conversation(
             id=f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         )
         # Reset tool handler selection
         self.tool_handler.selection.clear()
+        
+        # Create in database if persistence is enabled
+        if self.persistence_service:
+            self._db_conversation_id = await self.persistence_service.create_conversation()
+            # Update tool handler with new conversation ID
+            self.tool_handler.conversation_id = self._db_conversation_id
+            return self._db_conversation_id
+        
+        self._db_conversation_id = None
+        self.tool_handler.conversation_id = None
+        return None
+    
+    async def load_conversation(self, conversation_id: str) -> bool:
+        """Load an existing conversation from the database.
+        
+        Args:
+            conversation_id: The database ID of the conversation to load
+            
+        Returns:
+            True if loaded successfully, False if not found or persistence not enabled
+        """
+        if not self.persistence_service:
+            return False
+        
+        data = await self.persistence_service.load_conversation(conversation_id)
+        if not data:
+            return False
+        
+        # Load conversation into memory
+        self._db_conversation_id = data.id
+        self.conversation = Conversation(
+            id=data.id,
+            created_at=data.created_at,
+        )
+        
+        # Load messages
+        for msg in data.messages:
+            self.conversation.add_message(msg.role, msg.content)
+        
+        # Update tool handler with conversation ID and restore selection
+        self.tool_handler.conversation_id = data.id
+        await self.tool_handler.load_selection_from_db()
+        
+        return True
     
     async def chat(self, message: str) -> str:
         """Send a message and get a response.
         
         Uses tool calling to ensure all data comes from the database.
+        Automatically saves to database if persistence is enabled.
         
         Args:
             message: User's message
@@ -284,8 +395,23 @@ class ToolBasedChatAgent:
         Returns:
             Assistant's response
         """
+        # Create conversation in DB if needed (first message)
+        if self.persistence_service and not self._db_conversation_id:
+            from axon.agent.persistence import generate_title_from_message
+            self._db_conversation_id = await self.persistence_service.create_conversation(
+                title=generate_title_from_message(message)
+            )
+            # Update tool handler with the new conversation ID for persistence
+            self.tool_handler.conversation_id = self._db_conversation_id
+        
         # Add user message to history
         self.conversation.add_message("user", message)
+        
+        # Save user message to DB
+        if self.persistence_service and self._db_conversation_id:
+            await self.persistence_service.add_message(
+                self._db_conversation_id, "user", message
+            )
         
         # Build messages for Claude
         messages = self.conversation.get_history_for_llm()
@@ -296,7 +422,223 @@ class ToolBasedChatAgent:
         # Add assistant response to history
         self.conversation.add_message("assistant", response)
         
+        # Save assistant response to DB
+        if self.persistence_service and self._db_conversation_id:
+            await self.persistence_service.add_message(
+                self._db_conversation_id, "assistant", response
+            )
+        
         return response
+    
+    async def chat_stream(self, message: str) -> AsyncGenerator[StreamEvent, None]:
+        """Send a message and stream the response.
+        
+        Yields StreamEvent objects for:
+        - Tool execution status (TOOL_START, TOOL_END)
+        - Text chunks as they arrive (TEXT)
+        - Completion signal (DONE)
+        
+        Automatically saves to database if persistence is enabled.
+        
+        Args:
+            message: User's message
+            
+        Yields:
+            StreamEvent objects
+        """
+        # Create conversation in DB if needed (first message)
+        if self.persistence_service and not self._db_conversation_id:
+            from axon.agent.persistence import generate_title_from_message
+            self._db_conversation_id = await self.persistence_service.create_conversation(
+                title=generate_title_from_message(message)
+            )
+            # Update tool handler with the new conversation ID for persistence
+            self.tool_handler.conversation_id = self._db_conversation_id
+        
+        # Add user message to history
+        self.conversation.add_message("user", message)
+        
+        # Save user message to DB
+        if self.persistence_service and self._db_conversation_id:
+            await self.persistence_service.add_message(
+                self._db_conversation_id, "user", message
+            )
+        
+        # Build messages for Claude
+        messages = self.conversation.get_history_for_llm()
+        
+        # Stream with tools
+        full_response = ""
+        async for event in self._stream_with_tools(messages):
+            if event.type == StreamEventType.TEXT:
+                full_response += event.content
+            yield event
+        
+        # Add assistant response to history
+        self.conversation.add_message("assistant", full_response)
+        
+        # Save assistant response to DB
+        if self.persistence_service and self._db_conversation_id:
+            await self.persistence_service.add_message(
+                self._db_conversation_id, "assistant", full_response
+            )
+    
+    async def _stream_with_tools(
+        self, 
+        messages: list[dict], 
+        max_iterations: int = 10
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """Stream response with tool support.
+        
+        Handles tool calls iteratively, yielding events throughout.
+        
+        Args:
+            messages: Conversation messages
+            max_iterations: Maximum tool call iterations
+            
+        Yields:
+            StreamEvent objects
+        """
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            logger.debug(f"Stream iteration {iteration}")
+            
+            # Collect response parts for potential tool handling
+            collected_content = []
+            tool_uses = []
+            stop_reason = None
+            
+            # Stream from Claude
+            async with self.client.messages.stream(
+                model=self.model,
+                max_tokens=4096,
+                system=SYSTEM_PROMPT,
+                tools=TOOL_DEFINITIONS,
+                messages=messages,
+            ) as stream:
+                async for event in stream:
+                    # Handle different event types from the SDK
+                    if event.type == "content_block_start":
+                        if event.content_block.type == "tool_use":
+                            # Tool call starting - don't stream yet, wait for full input
+                            tool_uses.append({
+                                "id": event.content_block.id,
+                                "name": event.content_block.name,
+                                "input": {},
+                                "index": event.index,
+                            })
+                        elif event.content_block.type == "text":
+                            collected_content.append({
+                                "type": "text",
+                                "text": "",
+                                "index": event.index,
+                            })
+                    
+                    elif event.type == "content_block_delta":
+                        if event.delta.type == "text_delta":
+                            # Stream text immediately
+                            yield StreamEvent(
+                                type=StreamEventType.TEXT,
+                                content=event.delta.text
+                            )
+                            # Also collect it
+                            for block in collected_content:
+                                if block.get("index") == event.index:
+                                    block["text"] += event.delta.text
+                        
+                        elif event.delta.type == "input_json_delta":
+                            # Accumulate tool input JSON
+                            for tool in tool_uses:
+                                if tool.get("index") == event.index:
+                                    # The SDK sends partial JSON, we need to accumulate it
+                                    if "_partial_json" not in tool:
+                                        tool["_partial_json"] = ""
+                                    tool["_partial_json"] += event.delta.partial_json
+                    
+                    elif event.type == "message_delta":
+                        stop_reason = event.delta.stop_reason
+            
+            # Process tool calls if any
+            if tool_uses and stop_reason == "tool_use":
+                # Parse accumulated JSON for each tool
+                import json
+                for tool in tool_uses:
+                    if "_partial_json" in tool:
+                        try:
+                            tool["input"] = json.loads(tool["_partial_json"])
+                        except json.JSONDecodeError:
+                            tool["input"] = {}
+                
+                # Execute tools
+                tool_results = []
+                assistant_content = []
+                
+                # Add any text that came before tools
+                for block in collected_content:
+                    if block["type"] == "text" and block["text"]:
+                        assistant_content.append({
+                            "type": "text",
+                            "text": block["text"]
+                        })
+                
+                for tool in tool_uses:
+                    # Notify tool start
+                    yield StreamEvent(
+                        type=StreamEventType.TOOL_START,
+                        content=tool["name"],
+                        tool_input=tool["input"]
+                    )
+                    
+                    # Execute the tool
+                    logger.debug(f"Executing tool: {tool['name']}")
+                    tool_result = await self.tool_handler.handle_tool_call(
+                        tool["name"],
+                        tool["input"]
+                    )
+                    logger.debug(f"Tool {tool['name']} returned {len(tool_result)} chars")
+                    
+                    # Notify tool end
+                    yield StreamEvent(
+                        type=StreamEventType.TOOL_END,
+                        content=tool["name"]
+                    )
+                    
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": tool["id"],
+                        "name": tool["name"],
+                        "input": tool["input"]
+                    })
+                    
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tool["id"],
+                        "content": tool_result
+                    })
+                
+                # Add to messages and continue
+                messages.append({
+                    "role": "assistant",
+                    "content": assistant_content
+                })
+                messages.append({
+                    "role": "user",
+                    "content": tool_results
+                })
+            
+            else:
+                # No more tool calls, we're done
+                yield StreamEvent(type=StreamEventType.DONE)
+                return
+        
+        # Max iterations reached
+        yield StreamEvent(
+            type=StreamEventType.TEXT,
+            content="\n\nI apologize, but I reached the maximum number of tool calls. Please try simplifying your request."
+        )
+        yield StreamEvent(type=StreamEventType.DONE)
     
     async def _call_with_tools(self, messages: list[dict], max_iterations: int = 10) -> str:
         """Call Claude with tool support, handling tool calls iteratively.

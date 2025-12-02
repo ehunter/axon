@@ -119,6 +119,26 @@ TOOL_DEFINITIONS = [
         }
     },
     {
+        "name": "add_samples_to_selection",
+        "description": "Add multiple samples to the selection at once. More efficient than calling add_to_selection multiple times. Use this when recommending a set of samples to the user.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "case_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of external IDs for case samples to add"
+                },
+                "control_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of external IDs for control samples to add"
+                }
+            },
+            "required": []
+        }
+    },
+    {
         "name": "remove_from_selection",
         "description": "Remove a sample from the current selection by its ID.",
         "input_schema": {
@@ -177,6 +197,24 @@ TOOL_DEFINITIONS = [
                 }
             },
             "required": ["stat_type"]
+        }
+    },
+    {
+        "name": "search_knowledge",
+        "description": "Search the knowledge base for information about brain banking, tissue quality, experimental techniques, and neuroscience concepts. Use this to answer questions like 'What RIN is needed for RNA-seq?' or 'What is Braak staging?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The question or topic to search for in the knowledge base"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (default 3)"
+                }
+            },
+            "required": ["query"]
         }
     }
 ]
@@ -280,9 +318,23 @@ class ToolHandler:
     Claude can only present data that actually exists.
     """
     
-    def __init__(self, db_session: AsyncSession):
+    def __init__(
+        self, 
+        db_session: AsyncSession,
+        embedding_api_key: str | None = None,
+        persistence_service: "ConversationService | None" = None,
+        conversation_id: str | None = None,
+    ):
         self.db_session = db_session
         self.selection = SampleSelection()
+        self.persistence_service = persistence_service
+        self.conversation_id = conversation_id
+        
+        # Initialize RAG retriever for knowledge search if API key provided
+        self.retriever = None
+        if embedding_api_key:
+            from axon.rag.retrieval import RAGRetriever
+            self.retriever = RAGRetriever(db_session, embedding_api_key)
     
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> str:
         """Route tool calls to appropriate handlers."""
@@ -290,11 +342,13 @@ class ToolHandler:
             "search_samples": self._search_samples,
             "get_current_selection": self._get_current_selection,
             "add_to_selection": self._add_to_selection,
+            "add_samples_to_selection": self._add_samples_to_selection,
             "remove_from_selection": self._remove_from_selection,
             "get_selection_statistics": self._get_selection_statistics,
             "clear_selection": self._clear_selection,
             "get_sample_details": self._get_sample_details,
             "get_database_statistics": self._get_database_statistics,
+            "search_knowledge": self._search_knowledge,
         }
         
         handler = handlers.get(tool_name)
@@ -486,14 +540,102 @@ class ToolHandler:
         
         if group == "cases":
             if self.selection.add_case(selected):
+                # Persist to database if persistence is enabled
+                await self._persist_sample_add(selected, "case")
                 return f"Added {sample_id} to cases.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in cases."
         else:
             if self.selection.add_control(selected):
+                # Persist to database if persistence is enabled
+                await self._persist_sample_add(selected, "control")
                 return f"Added {sample_id} to controls.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in controls."
+    
+    async def _add_samples_to_selection(self, params: dict) -> str:
+        """Add multiple samples to the selection at once."""
+        case_ids = params.get("case_ids", [])
+        control_ids = params.get("control_ids", [])
+        
+        if not case_ids and not control_ids:
+            return "Error: Please provide case_ids and/or control_ids."
+        
+        added_cases = []
+        added_controls = []
+        failed = []
+        
+        # Add cases
+        for sample_id in case_ids:
+            result = await self._add_single_sample(sample_id, "cases")
+            if result["success"]:
+                added_cases.append(sample_id)
+            else:
+                failed.append(f"{sample_id}: {result['error']}")
+        
+        # Add controls
+        for sample_id in control_ids:
+            result = await self._add_single_sample(sample_id, "controls")
+            if result["success"]:
+                added_controls.append(sample_id)
+            else:
+                failed.append(f"{sample_id}: {result['error']}")
+        
+        # Build response
+        lines = ["## Samples Added to Selection\n"]
+        
+        if added_cases:
+            lines.append(f"**Cases added:** {len(added_cases)} ({', '.join(added_cases)})")
+        if added_controls:
+            lines.append(f"**Controls added:** {len(added_controls)} ({', '.join(added_controls)})")
+        
+        lines.append(f"\n**Current selection:** {len(self.selection.cases)} cases, {len(self.selection.controls)} controls")
+        
+        if failed:
+            lines.append(f"\n**Failed to add:** {len(failed)}")
+            for f in failed[:5]:  # Show first 5 failures
+                lines.append(f"  - {f}")
+        
+        return "\n".join(lines)
+    
+    async def _add_single_sample(self, sample_id: str, group: str) -> dict:
+        """Helper to add a single sample without returning a string."""
+        # Verify sample exists in database
+        query = select(Sample).where(Sample.external_id == sample_id)
+        query = query.order_by(Sample.rin_score.desc().nullslast())
+        
+        result = await self.db_session.execute(query)
+        samples = result.scalars().all()
+        
+        if not samples:
+            return {"success": False, "error": "not found"}
+        
+        sample = samples[0]
+        
+        selected = SelectedSample(
+            id=sample.id,
+            external_id=sample.external_id,
+            diagnosis=sample.primary_diagnosis,
+            age=sample.donor_age,
+            sex=sample.donor_sex,
+            rin=float(sample.rin_score) if sample.rin_score else None,
+            pmi=float(sample.postmortem_interval_hours) if sample.postmortem_interval_hours else None,
+            brain_region=sample.brain_region,
+            source_bank=sample.source_bank,
+            braak_stage=self._extract_braak(sample),
+            copathologies=self._extract_copathologies(sample),
+        )
+        
+        if group == "cases":
+            if self.selection.add_case(selected):
+                await self._persist_sample_add(selected, "case")
+                return {"success": True}
+            return {"success": False, "error": "already in cases"}
+        else:
+            if self.selection.add_control(selected):
+                await self._persist_sample_add(selected, "control")
+                return {"success": True}
+            return {"success": False, "error": "already in controls"}
     
     async def _remove_from_selection(self, params: dict) -> str:
         """Remove a sample from the selection."""
@@ -502,6 +644,8 @@ class ToolHandler:
             return "Error: sample_id is required."
         
         if self.selection.remove(sample_id):
+            # Persist removal to database if persistence is enabled
+            await self._persist_sample_remove(sample_id)
             return f"Removed {sample_id}. Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
         else:
             return f"Sample {sample_id} was not in the selection."
@@ -543,6 +687,8 @@ class ToolHandler:
     async def _clear_selection(self, params: dict) -> str:
         """Clear the current selection."""
         self.selection.clear()
+        # Persist to database if persistence is enabled
+        await self._persist_selection_clear()
         return "Selection cleared. No samples currently selected."
     
     async def _get_sample_details(self, params: dict) -> str:
@@ -724,4 +870,145 @@ class ToolHandler:
             return has_copathology(copath_info, exclude_categories)
         
         return False
+    
+    async def _search_knowledge(self, params: dict) -> str:
+        """Search the knowledge base for relevant information.
+        
+        Args:
+            params: dict with 'query' (required) and 'limit' (optional)
+            
+        Returns:
+            Formatted string with relevant knowledge chunks
+        """
+        query = params.get("query")
+        if not query:
+            return "Error: query parameter is required."
+        
+        # Check if retriever is available
+        if not self.retriever:
+            return "Knowledge search is not configured. The embedding API key was not provided."
+        
+        limit = params.get("limit", 3)
+        
+        try:
+            results = await self.retriever.retrieve_knowledge(
+                query=query,
+                limit=limit,
+            )
+        except Exception as e:
+            return f"Error searching knowledge base: {str(e)}"
+        
+        if not results:
+            return f"No relevant information found for: '{query}'. Try rephrasing your question or ask about brain banking, tissue quality, or neuroscience concepts."
+        
+        # Format results
+        lines = [f"## Knowledge Base Results\n\nFound {len(results)} relevant items for: '{query}'\n"]
+        
+        for i, item in enumerate(results, 1):
+            lines.append(f"### Reference {i}")
+            if item.document_title:
+                lines.append(f"**Source:** {item.source_name} - {item.document_title}")
+            else:
+                lines.append(f"**Source:** {item.source_name}")
+            
+            if item.chunk.section_title:
+                lines.append(f"**Section:** {item.chunk.section_title}")
+            
+            lines.append(f"**Relevance:** {item.score:.0%}")
+            lines.append("")
+            lines.append(item.chunk.content)
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    # === Selection Persistence Methods ===
+    
+    async def _persist_sample_add(self, sample: SelectedSample, group: str) -> None:
+        """Persist a sample addition to the database.
+        
+        Silently handles errors to avoid breaking the main flow if
+        the conversation_samples table doesn't exist or there's a DB issue.
+        """
+        if not self.persistence_service or not self.conversation_id:
+            return
+        
+        try:
+            await self.persistence_service.save_sample_to_selection(
+                conversation_id=self.conversation_id,
+                sample_external_id=sample.external_id,
+                sample_group=group,
+                diagnosis=sample.diagnosis,
+                age=sample.age,
+                sex=sample.sex,
+                source_bank=sample.source_bank,
+            )
+        except Exception as e:
+            # Log but don't fail - selection persistence is non-critical
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to persist sample add: {e}")
+            # Rollback to clear the failed transaction
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass
+    
+    async def _persist_sample_remove(self, sample_external_id: str) -> None:
+        """Persist a sample removal to the database.
+        
+        Silently handles errors to avoid breaking the main flow.
+        """
+        if not self.persistence_service or not self.conversation_id:
+            return
+        
+        try:
+            await self.persistence_service.remove_sample_from_selection(
+                conversation_id=self.conversation_id,
+                sample_external_id=sample_external_id,
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to persist sample remove: {e}")
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass
+    
+    async def _persist_selection_clear(self) -> None:
+        """Persist clearing the selection to the database.
+        
+        Silently handles errors to avoid breaking the main flow.
+        """
+        if not self.persistence_service or not self.conversation_id:
+            return
+        
+        try:
+            await self.persistence_service.clear_selection(self.conversation_id)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to persist selection clear: {e}")
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass
+    
+    async def load_selection_from_db(self) -> None:
+        """Load the sample selection from the database.
+        
+        Call this after setting conversation_id to restore a previous session's selection.
+        Silently handles errors if the table doesn't exist.
+        """
+        if not self.persistence_service or not self.conversation_id:
+            return
+        
+        try:
+            self.selection = await self.persistence_service.load_selection(
+                self.conversation_id
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to load selection from DB: {e}")
+            try:
+                await self.db_session.rollback()
+            except Exception:
+                pass
 

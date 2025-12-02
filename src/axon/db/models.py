@@ -186,6 +186,9 @@ class Conversation(Base):
     messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="conversation", cascade="all, delete-orphan"
     )
+    samples: Mapped[list["ConversationSample"]] = relationship(
+        "ConversationSample", back_populates="conversation", cascade="all, delete-orphan"
+    )
 
 
 class Message(Base):
@@ -214,6 +217,43 @@ class Message(Base):
     # Relationships
     conversation: Mapped["Conversation"] = relationship(
         "Conversation", back_populates="messages"
+    )
+
+
+class ConversationSample(Base):
+    """Samples selected/recommended in a conversation.
+    
+    Persists the sample selection so users can resume sessions
+    with their previously selected cases and controls.
+    """
+
+    __tablename__ = "conversation_samples"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    conversation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    sample_external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    sample_group: Mapped[str] = mapped_column(String(20), nullable=False)  # 'case' or 'control'
+    
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Cached sample info for display without re-querying samples table
+    diagnosis: Mapped[str | None] = mapped_column(String(500))
+    age: Mapped[int | None] = mapped_column(Integer)
+    sex: Mapped[str | None] = mapped_column(String(20))
+    source_bank: Mapped[str | None] = mapped_column(String(100))
+    
+    # Relationships
+    conversation: Mapped["Conversation"] = relationship(
+        "Conversation", back_populates="samples"
+    )
+    
+    # Unique constraint: same sample can't be added twice to same conversation
+    __table_args__ = (
+        UniqueConstraint('conversation_id', 'sample_external_id', name='uq_conversation_sample'),
     )
 
 
