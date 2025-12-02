@@ -20,6 +20,7 @@ console = Console(theme=Theme({
     "user": "bold cyan",
     "assistant": "bold green",
     "info": "dim",
+    "tool": "bold yellow",
 }))
 
 
@@ -27,6 +28,7 @@ console = Console(theme=Theme({
 def start_chat(
     use_tools: bool = typer.Option(True, help="Use tool-based agent (prevents hallucination)"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show debug logging"),
+    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream responses in real-time"),
 ):
     """Start an interactive chat session with Axon.
     
@@ -56,17 +58,20 @@ def start_chat(
     asyncio.run(_chat_loop(
         anthropic_key=settings.anthropic_api_key,
         use_tools=use_tools,
+        stream=stream,
     ))
 
 
 async def _chat_loop(
     anthropic_key: str,
     use_tools: bool = True,
+    stream: bool = True,
 ):
     """Main chat loop."""
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     
-    from axon.agent.chat_with_tools import ToolBasedChatAgent
+    from axon.agent.chat_with_tools import ToolBasedChatAgent, StreamEventType
+    from axon.agent.persistence import ConversationService
     from axon.config import get_settings
     
     settings = get_settings()
@@ -80,15 +85,23 @@ async def _chat_loop(
         "I can help you find brain tissue samples for your research.\n"
         "All sample data comes directly from the database - no fabrication.\n\n"
         "[dim]Commands: 'quit' to exit, 'new' for fresh conversation,\n"
-        "'selection' for selected samples, 'export' to save selection[/dim]",
+        "'history' for past sessions, 'resume <id>' to continue a session[/dim]",
         border_style="green",
     ))
     console.print()
     
     async with session_factory() as session:
+        # Create persistence service for saving conversations
+        persistence_service = ConversationService(session)
+        
+        # Get embedding API key for knowledge search (optional)
+        embedding_api_key = settings.openai_api_key or None
+        
         agent = ToolBasedChatAgent(
             db_session=session,
             anthropic_api_key=anthropic_key,
+            persistence_service=persistence_service,
+            embedding_api_key=embedding_api_key,
         )
         
         while True:
@@ -107,7 +120,7 @@ async def _chat_loop(
                     break
                 
                 if command == "new":
-                    agent.new_conversation()
+                    await agent.new_conversation()
                     console.print("[info]Started new conversation. Selection cleared.[/info]\n")
                     continue
                 
@@ -122,6 +135,14 @@ async def _chat_loop(
                     _print_help()
                     continue
                 
+                if command == "history":
+                    await _handle_history(persistence_service)
+                    continue
+                
+                if command.startswith("resume"):
+                    await _handle_resume(agent, persistence_service, command)
+                    continue
+                
                 if command.startswith("export"):
                     await _handle_export(agent, command)
                     continue
@@ -130,18 +151,24 @@ async def _chat_loop(
                     await _handle_email_preview(agent)
                     continue
                 
-                # Get response from agent (tool-based, always complete response)
+                # Get response from agent
                 console.print()
-                
-                with Status("[dim]Thinking...[/dim]", spinner="dots", console=console) as status:
-                    try:
-                        response = await agent.chat(user_input)
-                    except Exception as e:
-                        console.print(f"[red]Error getting response: {e}[/red]\n")
-                        continue
-                
                 console.print("[assistant]Axon[/assistant]\n")
-                console.print(Markdown(response))
+                
+                if stream:
+                    # Streaming mode
+                    await _stream_response(agent, user_input)
+                else:
+                    # Non-streaming mode (original behavior)
+                    with Status("[dim]Thinking...[/dim]", spinner="dots", console=console) as status:
+                        try:
+                            response = await agent.chat(user_input)
+                        except Exception as e:
+                            console.print(f"[red]Error getting response: {e}[/red]\n")
+                            continue
+                    
+                    console.print(Markdown(response))
+                
                 console.print()
                 
             except KeyboardInterrupt:
@@ -154,12 +181,154 @@ async def _chat_loop(
     await engine.dispose()
 
 
+async def _stream_response(agent, user_input: str):
+    """Stream a response from the agent with live updates.
+    
+    Shows a 'Thinking...' spinner until text starts streaming,
+    then displays the response as it arrives.
+    """
+    from axon.agent.chat_with_tools import StreamEventType
+    
+    response_text = ""
+    thinking_shown = False
+    status = None
+    
+    try:
+        # Start with "Thinking..." indicator
+        status = Status("[dim]Thinking...[/dim]", spinner="dots", console=console)
+        status.start()
+        thinking_shown = True
+        
+        async for event in agent.chat_stream(user_input):
+            if event.type == StreamEventType.TOOL_START:
+                # Tool executing - keep showing "Thinking..."
+                pass
+            
+            elif event.type == StreamEventType.TOOL_END:
+                # Tool finished - keep showing "Thinking..."
+                pass
+            
+            elif event.type == StreamEventType.TEXT:
+                # First text arrives - stop the spinner
+                if thinking_shown and status:
+                    status.stop()
+                    thinking_shown = False
+                
+                # Stream text
+                console.print(event.content, end="")
+                response_text += event.content
+            
+            elif event.type == StreamEventType.DONE:
+                # Stop spinner if still running (e.g., empty response)
+                if thinking_shown and status:
+                    status.stop()
+                    thinking_shown = False
+                
+                # Ensure we end with a newline
+                if response_text and not response_text.endswith("\n"):
+                    console.print()
+    
+    except Exception as e:
+        # Make sure spinner stops on error
+        if thinking_shown and status:
+            status.stop()
+        console.print(f"\n[red]Error during streaming: {e}[/red]")
+        import traceback
+        traceback.print_exc()
+
+
+async def _handle_history(persistence_service):
+    """Handle the history command - show recent conversations."""
+    conversations = await persistence_service.list_conversations(limit=10)
+    
+    if not conversations:
+        console.print("[info]No previous conversations found.[/info]\n")
+        return
+    
+    console.print()
+    console.print("[bold]Recent Conversations:[/bold]\n")
+    
+    for conv in conversations:
+        title = conv.title or "Untitled"
+        date_str = conv.updated_at.strftime("%Y-%m-%d %H:%M")
+        msg_count = conv.message_count
+        
+        # Truncate title if too long
+        if len(title) > 50:
+            title = title[:47] + "..."
+        
+        console.print(
+            f"  [cyan]{conv.id[:8]}[/cyan]  {title}  "
+            f"[dim]({msg_count} messages, {date_str})[/dim]"
+        )
+    
+    console.print()
+    console.print("[dim]Use 'resume <id>' to continue a conversation[/dim]\n")
+
+
+async def _handle_resume(agent, persistence_service, command: str):
+    """Handle the resume command - load a previous conversation."""
+    parts = command.split()
+    
+    if len(parts) < 2:
+        console.print("[yellow]Usage: resume <conversation_id>[/yellow]\n")
+        console.print("[dim]Use 'history' to see available conversations[/dim]\n")
+        return
+    
+    conv_id_prefix = parts[1]
+    
+    # Find conversation matching the prefix
+    conversations = await persistence_service.list_conversations(limit=50)
+    matches = [c for c in conversations if c.id.startswith(conv_id_prefix)]
+    
+    if not matches:
+        console.print(f"[red]No conversation found matching '{conv_id_prefix}'[/red]\n")
+        return
+    
+    if len(matches) > 1:
+        console.print(f"[yellow]Multiple conversations match '{conv_id_prefix}':[/yellow]")
+        for conv in matches[:5]:
+            console.print(f"  [cyan]{conv.id[:8]}[/cyan]  {conv.title or 'Untitled'}")
+        console.print("[dim]Please provide a more specific ID[/dim]\n")
+        return
+    
+    # Load the conversation
+    conv = matches[0]
+    success = await agent.load_conversation(conv.id)
+    
+    if success:
+        title = conv.title or "Untitled"
+        console.print(f"[green]✓[/green] Resumed: [bold]{title}[/bold]\n")
+        
+        # Show restored selection summary
+        selection = agent.tool_handler.selection
+        if selection.cases or selection.controls:
+            case_count = len(selection.cases)
+            control_count = len(selection.controls)
+            console.print(f"[dim]Restored selection: {case_count} case(s), {control_count} control(s)[/dim]")
+        
+        # Show last few messages for context
+        data = await persistence_service.load_conversation(conv.id)
+        if data and data.messages:
+            console.print("[dim]Recent messages:[/dim]")
+            for msg in data.messages[-4:]:  # Last 4 messages
+                role_color = "cyan" if msg.role == "user" else "green"
+                role_label = "You" if msg.role == "user" else "Axon"
+                content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+                console.print(f"  [{role_color}]{role_label}[/{role_color}]: {content_preview}")
+            console.print()
+    else:
+        console.print(f"[red]Failed to load conversation '{conv_id_prefix}'[/red]\n")
+
+
 def _print_help():
     """Print help information."""
     console.print(Panel(
         "[bold]Available Commands:[/bold]\n\n"
         "• [cyan]quit[/cyan] / [cyan]exit[/cyan] - End the chat session\n"
         "• [cyan]new[/cyan] - Start a fresh conversation\n"
+        "• [cyan]history[/cyan] - Show recent conversations\n"
+        "• [cyan]resume[/cyan] <id> - Continue a previous conversation\n"
         "• [cyan]selection[/cyan] - Show current sample selection\n"
         "• [cyan]export[/cyan] [format] - Export selection (csv, xlsx, json, txt)\n"
         "• [cyan]email[/cyan] - Preview admin email summary\n"
