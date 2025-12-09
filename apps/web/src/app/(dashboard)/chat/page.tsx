@@ -219,13 +219,13 @@ const AssistantMessageText: FC = () => {
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-muted">{children}</thead>
+            <thead>{children}</thead>
           ),
           tbody: ({ children }) => (
             <tbody>{children}</tbody>
           ),
           tr: ({ children }) => (
-            <tr className="border-b border-muted-foreground/30 even:bg-muted/30">{children}</tr>
+            <tr className="border-b border-muted-foreground/30">{children}</tr>
           ),
           th: ({ children }) => (
             <th className="border border-muted-foreground/30 px-3 py-2 text-left font-semibold text-foreground">
