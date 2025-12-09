@@ -71,7 +71,7 @@ function SuggestionCard({
 }) {
   return (
     <Link 
-      href="/chat"
+      href={`/chat?message=${encodeURIComponent(description)}`}
       className="suggestion-card flex flex-col gap-6"
     >
       <div className="text-card-foreground">
