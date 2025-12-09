@@ -32,6 +32,13 @@ const bottomNavigation = [
   { name: "About", href: "/about", icon: HelpCircle },
 ];
 
+// Mock chats data - will be replaced with API call later
+const recentChats = [
+  { id: "1", name: "Sample Inventory Count", active: true },
+  { id: "2", name: "Another Chat", active: false },
+  { id: "3", name: "Another Chat 2", active: false },
+];
+
 // Mock cohorts data - will be replaced with API call later
 const cohorts = [
   { id: "1", name: "RNA Seq - March 2025" },
@@ -111,6 +118,32 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Chats Section */}
+        <div className="pt-4">
+          <div className="h-8 px-2 flex items-center opacity-70">
+            <p className="text-base text-sidebar-foreground">Chats</p>
+          </div>
+          <div className="space-y-1 mt-1">
+            {recentChats.map((chat) => (
+              <button
+                key={chat.id}
+                className={cn(
+                  "flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
+                  chat.active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent"
+                )}
+              >
+                <span className="truncate">{chat.name}</span>
+              </button>
+            ))}
+            <button className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors w-full text-left opacity-70">
+              <MoreHorizontal className="h-4 w-4 shrink-0" />
+              <span>More</span>
+            </button>
+          </div>
+        </div>
 
         {/* Cohorts Section */}
         <div className="pt-4">
