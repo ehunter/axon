@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Dna, HelpCircle, Paperclip, ArrowUp } from "lucide-react";
+import { Dna, HelpCircle, Paperclip, ArrowUp, Sparkles, Briefcase, Lightbulb } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default function Home() {
@@ -14,45 +13,27 @@ export default function Home() {
       
       {/* Main content */}
       <div className="flex-1 p-4 pr-4 pt-4 pb-0">
-        <div className="main-container h-full flex flex-col items-center">
-          {/* Header spacer */}
-          <div className="w-full p-6" />
-          
-          {/* Content */}
-          <div className="flex-1 flex flex-col items-center justify-center px-4 py-20 w-full max-w-[700px]">
+        <div className="main-container h-full flex flex-col items-center justify-center">
+          {/* Centered content area */}
+          <div className="flex flex-col items-center w-full max-w-[700px] space-y-6">
             {/* Greeting */}
-            <div className="w-full space-y-8">
-              <h1 className="text-display text-surface-foreground animate-fade-in">
-                What can I help you with?
-              </h1>
-              
-              {/* Suggestion Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-in-up">
-                <SuggestionCard
-                  icon={<Dna className="h-6 w-6" />}
-                  title="Find Tissue Samples"
-                  description="I need 8 Alzheimer's tissue samples and 8 control samples"
-                />
-                <SuggestionCard
-                  icon={<HelpCircle className="h-6 w-6" />}
-                  title="Answer Questions"
-                  description="Why are Braak scores important when selecting tissue samples?"
-                />
-                <SuggestionCard
-                  icon={<Dna className="h-6 w-6" />}
-                  title="Inventory Management"
-                  description="Pull up my samples from last cohort"
-                />
-              </div>
+            <h1 className="text-display text-surface-foreground animate-fade-in text-center">
+              What can I help you with?
+            </h1>
+            
+            {/* Chat input */}
+            <div className="w-full animate-fade-in-up">
+              <ChatInputHome />
             </div>
-          </div>
-          
-          {/* Footer with chat input */}
-          <div className="w-full max-w-[700px] px-10 py-8 space-y-4">
-            <ChatInputHome />
-            <p className="text-base text-muted-foreground text-center">
-              Axon is in Beta and can make mistakes. Please check your tissue recommendations
-            </p>
+            
+            {/* Category pills */}
+            <div className="flex flex-wrap justify-center gap-2 animate-fade-in-up">
+              <CategoryPill icon={<Dna className="h-4 w-4" />} label="Find Samples" />
+              <CategoryPill icon={<HelpCircle className="h-4 w-4" />} label="Learn" />
+              <CategoryPill icon={<Sparkles className="h-4 w-4" />} label="Explore" />
+              <CategoryPill icon={<Briefcase className="h-4 w-4" />} label="My Cohorts" />
+              <CategoryPill icon={<Lightbulb className="h-4 w-4" />} label="Suggestions" />
+            </div>
           </div>
         </div>
       </div>
@@ -60,28 +41,21 @@ export default function Home() {
   );
 }
 
-function SuggestionCard({
+function CategoryPill({
   icon,
-  title,
-  description,
+  label,
 }: {
   icon: React.ReactNode;
-  title: string;
-  description: string;
+  label: string;
 }) {
   return (
-    <Link 
-      href={`/chat?message=${encodeURIComponent(description)}`}
-      className="suggestion-card flex flex-col gap-6"
+    <button
+      type="button"
+      className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-transparent text-foreground hover:bg-muted transition-colors"
     >
-      <div className="text-card-foreground">
-        {icon}
-      </div>
-      <div className="space-y-2">
-        <h3 className="text-base font-semibold text-card-foreground leading-6">{title}</h3>
-        <p className="text-base text-card-foreground/80 leading-6">{description}</p>
-      </div>
-    </Link>
+      {icon}
+      <span className="text-base">{label}</span>
+    </button>
   );
 }
 
