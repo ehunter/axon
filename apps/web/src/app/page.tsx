@@ -1,11 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { Dna, HelpCircle, Paperclip, ArrowUp } from "lucide-react";
+import { Sidebar } from "@/components/layout/sidebar";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar placeholder for consistent layout */}
-      <div className="hidden lg:block w-[270px] bg-sidebar shrink-0" />
+      {/* Sidebar */}
+      <Sidebar />
       
       {/* Main content */}
       <div className="flex-1 p-4 pr-4 pt-4 pb-0">
