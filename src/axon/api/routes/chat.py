@@ -75,6 +75,8 @@ async def chat_stream(
     """
     settings = get_settings()
     
+    logger.info(f"Chat stream request - message: {request.message[:50]}..., conversation_id: {request.conversation_id}")
+    
     if not settings.anthropic_api_key:
         raise HTTPException(
             status_code=503,
@@ -95,14 +97,19 @@ async def chat_stream(
     # Load existing conversation if conversation_id provided
     if request.conversation_id:
         try:
-            await agent.load_conversation(request.conversation_id)
-            logger.info(f"Loaded conversation: {request.conversation_id}")
+            success = await agent.load_conversation(request.conversation_id)
+            if success:
+                msg_count = len(agent.conversation.messages) if agent.conversation else 0
+                logger.info(f"Loaded conversation {request.conversation_id} with {msg_count} messages")
+            else:
+                logger.warning(f"Failed to load conversation {request.conversation_id}")
         except Exception as e:
             logger.warning(f"Could not load conversation {request.conversation_id}: {e}")
             # Continue with new conversation if load fails
     
     # Get conversation ID (either loaded or newly created)
     conversation_id = agent.conversation.id if agent.conversation else "unknown"
+    logger.info(f"Using conversation_id: {conversation_id}")
     
     return StreamingResponse(
         stream_chat_response(agent, request.message, conversation_id),
