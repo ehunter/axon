@@ -31,7 +31,7 @@
     
     /* Muted */
     --muted: 210 17% 93%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 229 10% 45%;  /* Blue-tinted gray for light mode */
     
     /* Accent */
     --accent: 210 17% 93%;
@@ -97,7 +97,7 @@
     
     /* Muted - #383b4b */
     --muted: 225 14% 26%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 229 10% 62%;  /* #969aab - blue-tinted gray, AA compliant */
     
     /* Accent - #383b4b */
     --accent: 225 14% 26%;
