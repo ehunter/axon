@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Dna, HelpCircle, Paperclip, ArrowUp } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -47,7 +49,7 @@ export default function Home() {
           
           {/* Footer with chat input */}
           <div className="w-full max-w-[700px] px-10 py-8 space-y-4">
-            <ChatInputPreview />
+            <ChatInputHome />
             <p className="text-base text-muted-foreground text-center">
               Axon is in Beta and can make mistakes. Please check your tissue recommendations
             </p>
@@ -83,32 +85,59 @@ function SuggestionCard({
   );
 }
 
-function ChatInputPreview() {
+function ChatInputHome() {
+  const [message, setMessage] = useState("");
+  const router = useRouter();
+
+  const handleSubmit = () => {
+    if (message.trim()) {
+      // Navigate to chat with initial message as query param
+      router.push(`/chat?message=${encodeURIComponent(message.trim())}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <Link 
-      href="/chat"
-      className="block w-full bg-input rounded-[20px] px-5 py-4 h-[120px] hover:bg-input/80 transition-colors group"
-    >
+    <div className="w-full bg-input rounded-[20px] px-5 py-4 h-[120px]">
       <div className="flex flex-col justify-between h-full">
-        {/* Placeholder text */}
-        <p className="text-base text-muted-foreground leading-6">
-          Ask anything
-        </p>
+        {/* Text input */}
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask anything"
+          className="w-full bg-transparent text-base text-foreground placeholder:text-muted-foreground leading-6 resize-none focus:outline-none"
+          rows={2}
+        />
         
         {/* Bottom row with attach and send */}
         <div className="flex items-center justify-between">
           {/* Attach button */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
+          <button 
+            type="button"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <Paperclip className="h-5 w-5" />
             <span className="text-base font-medium">Attach</span>
-          </div>
+          </button>
           
           {/* Send button */}
-          <div className="bg-primary text-primary-foreground rounded-full p-1.5 group-hover:bg-primary/90 transition-colors">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!message.trim()}
+            className="bg-primary text-primary-foreground rounded-full p-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <ArrowUp className="h-5 w-5" />
-          </div>
+          </button>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
