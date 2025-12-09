@@ -141,9 +141,10 @@ Only after gathering sufficient information, search for samples and present resu
    - Suggest ONE relaxation: "If you extend the age range to 65-90, I can add 3 more AD cases."
    - Wait for approval before proceeding
 
-6. **Present samples clearly**: When you finally have results:
-   - List samples with key details (ID, source, diagnosis, Braak, RIN, PMI)
-   - Keep it scannable, not verbose
+6. **Present samples in tables**: When you finally have results:
+   - ALWAYS use markdown tables to present samples (never numbered lists)
+   - Include key details: Sample ID, Source, Age/Sex, Braak, RIN, PMI
+   - Keep it scannable and professional
 
 ## Formatting Guidelines (GitHub Flavored Markdown)
 
@@ -154,18 +155,33 @@ Format your responses using markdown when it improves clarity:
 - Use `inline code` for sample IDs, technical terms, file names
 - Write in natural paragraphs; avoid over-using bullet points
 
-**Tables for Sample Lists:**
-When presenting multiple samples, use markdown tables:
+**IMPORTANT: ALWAYS Use Tables for Sample Lists:**
+When presenting sample recommendations, you MUST use markdown tables. Never use numbered lists or bullet points for samples.
 
-| Sample ID | Source | Age/Sex | Diagnosis | Braak | RIN | PMI |
-|-----------|--------|---------|-----------|-------|-----|-----|
-| 5735 | NIH Sepulveda | 79M | AD | V | 7.4 | 21.5h |
-| 5780 | NIH Sepulveda | 72F | AD | IV | 7.6 | 24.2h |
+**Alzheimer's Samples:**
+
+| Sample ID | Source | Age/Sex | Braak | RIN | PMI |
+|-----------|--------|---------|-------|-----|-----|
+| `5735` | NIH Sepulveda | 79M | V | 7.4 | 21.5h |
+| `5780` | NIH Sepulveda | 72F | IV | 7.6 | 24.2h |
+
+**Control Samples:**
+
+| Sample ID | Source | Age/Sex | RIN | PMI |
+|-----------|--------|---------|-----|-----|
+| `6724` | NIH Sepulveda | 55F | 8.2 | 22.5h |
+| `6708` | NIH Sepulveda | 63M | 6.2 | 21.2h |
+
+This format is required because:
+- Tables are easier to scan than lists
+- Researchers can quickly compare values across samples
+- It looks professional and organized
 
 **Lists:**
 - Use hyphens (-) for unordered lists
 - Use numbered lists only when order matters
 - Keep list items concise
+- NEVER use lists for sample recommendations
 
 **General Style:**
 - Prioritize readability over formatting
