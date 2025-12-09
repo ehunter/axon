@@ -71,10 +71,14 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
+        "3xl": "calc(var(--radius) + 16px)",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: ["var(--font-source-sans)", "system-ui", "sans-serif"],
+      },
+      fontSize: {
+        "display": ["48px", { lineHeight: "56px", fontWeight: "300" }],
       },
       keyframes: {
         "accordion-down": {
