@@ -9,7 +9,7 @@ export interface Message {
 }
 
 export interface StreamEvent {
-  type: "text" | "tool_start" | "tool_end" | "done" | "error";
+  type: "text" | "tool_start" | "tool_end" | "done" | "error" | "conversation_id";
   content: string;
   tool_input?: Record<string, unknown>;
 }
@@ -23,6 +23,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
@@ -59,7 +60,10 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({ 
+          message: content,
+          conversationId, // Send conversation ID to maintain state
+        }),
         signal: abortControllerRef.current.signal,
       });
 
@@ -92,7 +96,10 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
             try {
               const event: StreamEvent = JSON.parse(line.slice(6));
 
-              if (event.type === "text") {
+              if (event.type === "conversation_id") {
+                // Store conversation ID for subsequent requests
+                setConversationId(event.content);
+              } else if (event.type === "text") {
                 // Append text to assistant message (immutable update)
                 setMessages((prev) => {
                   const lastIndex = prev.length - 1;
@@ -112,7 +119,11 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
               }
               // tool_start and tool_end events can be used for UI feedback
             } catch (parseError) {
-              console.error("Failed to parse SSE event:", parseError);
+              if (parseError instanceof SyntaxError) {
+                console.error("Failed to parse SSE event:", parseError);
+              } else {
+                throw parseError;
+              }
             }
           }
         }
@@ -141,7 +152,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [isLoading, options]);
+  }, [isLoading, conversationId, options]);
 
   const cancelStream = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -150,6 +161,7 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
+    setConversationId(null); // Start fresh conversation
   }, []);
 
   return {
@@ -157,10 +169,10 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
     isLoading,
     isStreaming,
     error,
+    conversationId,
     sendMessage,
     cancelStream,
     clearMessages,
     setMessages,
   };
 }
-

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from axon.agent.chat_with_tools import StreamEventType, ToolBasedChatAgent
+from axon.agent.persistence import ConversationService
 from axon.api.dependencies import get_db
 from axon.config import get_settings
 
@@ -33,9 +34,13 @@ class ChatResponse(BaseModel):
 async def stream_chat_response(
     agent: ToolBasedChatAgent,
     message: str,
+    conversation_id: str,
 ) -> AsyncGenerator[str, None]:
     """Stream chat response as Server-Sent Events."""
     try:
+        # Send conversation_id first so frontend can track it
+        yield f"data: {json.dumps({'type': 'conversation_id', 'content': conversation_id})}\n\n"
+        
         async for event in agent.chat_stream(message):
             # Format as SSE
             data = {
@@ -61,6 +66,7 @@ async def chat_stream(
     """Stream a chat response using Server-Sent Events.
     
     Returns SSE stream with events:
+    - type: "conversation_id" - The conversation ID (sent first)
     - type: "text" - Text chunk from response
     - type: "tool_start" - Tool execution starting
     - type: "tool_end" - Tool execution completed  
@@ -75,17 +81,31 @@ async def chat_stream(
             detail="Chat unavailable: Anthropic API key not configured"
         )
     
-    # Create agent
+    # Create persistence service for conversation state
+    persistence_service = ConversationService(db)
+    
+    # Create agent with persistence (like CLI does)
     agent = ToolBasedChatAgent(
         db_session=db,
         anthropic_api_key=settings.anthropic_api_key,
         embedding_api_key=settings.openai_api_key,
+        persistence_service=persistence_service,
     )
     
-    # TODO: Load existing conversation if conversation_id provided
+    # Load existing conversation if conversation_id provided
+    if request.conversation_id:
+        try:
+            await agent.load_conversation(request.conversation_id)
+            logger.info(f"Loaded conversation: {request.conversation_id}")
+        except Exception as e:
+            logger.warning(f"Could not load conversation {request.conversation_id}: {e}")
+            # Continue with new conversation if load fails
+    
+    # Get conversation ID (either loaded or newly created)
+    conversation_id = agent.conversation.id if agent.conversation else "unknown"
     
     return StreamingResponse(
-        stream_chat_response(agent, request.message),
+        stream_chat_response(agent, request.message, conversation_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -109,14 +129,25 @@ async def chat(
             detail="Chat unavailable: Anthropic API key not configured"
         )
     
-    # Create agent
+    # Create persistence service for conversation state
+    persistence_service = ConversationService(db)
+    
+    # Create agent with persistence (like CLI does)
     agent = ToolBasedChatAgent(
         db_session=db,
         anthropic_api_key=settings.anthropic_api_key,
         embedding_api_key=settings.openai_api_key,
+        persistence_service=persistence_service,
     )
     
-    # TODO: Load existing conversation if conversation_id provided
+    # Load existing conversation if conversation_id provided
+    if request.conversation_id:
+        try:
+            await agent.load_conversation(request.conversation_id)
+            logger.info(f"Loaded conversation: {request.conversation_id}")
+        except Exception as e:
+            logger.warning(f"Could not load conversation {request.conversation_id}: {e}")
+            # Continue with new conversation if load fails
     
     try:
         response = await agent.chat(request.message)
@@ -127,4 +158,3 @@ async def chat(
     except Exception as e:
         logger.exception("Error during chat")
         raise HTTPException(status_code=500, detail=str(e))
-
