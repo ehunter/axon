@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,14 +8,36 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
-export function ChatInput({
-  onSend,
-  disabled = false,
-  placeholder = "Ask anything",
-}: ChatInputProps) {
+export interface ChatInputRef {
+  focus: () => void;
+}
+
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
+  {
+    onSend,
+    disabled = false,
+    placeholder = "Ask anything",
+    autoFocus = false,
+  },
+  ref
+) {
   const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Expose focus method to parent
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
+
+  // Auto-focus when autoFocus prop changes to true
+  useEffect(() => {
+    if (autoFocus && !disabled) {
+      inputRef.current?.focus();
+    }
+  }, [autoFocus, disabled]);
 
   const handleSend = () => {
     if (value.trim() && !disabled) {
@@ -40,6 +62,7 @@ export function ChatInput({
       )}
     >
       <input
+        ref={inputRef}
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -64,5 +87,5 @@ export function ChatInput({
       </button>
     </div>
   );
-}
+});
 

@@ -3,7 +3,7 @@
 import { useRef, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertCircle } from "lucide-react";
-import { ChatMessage, ChatInput, ChatHeader } from "@/components/chat";
+import { ChatMessage, ChatInput, ChatHeader, type ChatInputRef } from "@/components/chat";
 import { useChatStream } from "@/hooks/use-chat-stream";
 
 function ChatPageContent() {
@@ -16,9 +16,11 @@ function ChatPageContent() {
   } = useChatStream();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<ChatInputRef>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialMessageSent = useRef(false);
+  const wasLoading = useRef(false);
 
   // Handle initial message from URL query param
   useEffect(() => {
@@ -36,6 +38,15 @@ function ChatPageContent() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-focus input after agent finishes responding
+  useEffect(() => {
+    if (wasLoading.current && !isLoading) {
+      // Loading just finished, focus the input
+      chatInputRef.current?.focus();
+    }
+    wasLoading.current = isLoading;
+  }, [isLoading]);
 
   return (
     <div className="flex flex-col h-full">
@@ -97,7 +108,7 @@ function ChatPageContent() {
         {/* Footer with input */}
         <div className="px-10 py-8">
           <div className="max-w-[608px] mx-auto space-y-4">
-            <ChatInput onSend={sendMessage} disabled={isLoading} />
+            <ChatInput ref={chatInputRef} onSend={sendMessage} disabled={isLoading} />
             <p className="text-base text-muted-foreground text-center">
               Axon is in Beta and can make mistakes. Please check your tissue
               recommendations

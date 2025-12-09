@@ -1,4 +1,4 @@
 export { ChatMessage } from "./chat-message";
-export { ChatInput } from "./chat-input";
+export { ChatInput, type ChatInputRef } from "./chat-input";
 export { ChatHeader } from "./chat-header";
 
