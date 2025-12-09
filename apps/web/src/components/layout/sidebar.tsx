@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Brain,
   MessageCircle,
@@ -14,14 +14,15 @@ import {
   ChevronsUpDown,
   PanelLeft,
   LogIn,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useConversations } from "@/hooks/use-conversations";
 import { useState } from "react";
 
 // Main navigation items
 const mainNavigation = [
-  { name: "New Chat", href: "/chat", icon: MessageCircle },
   { name: "Requests", href: "/history", icon: BookOpen },
   { name: "Explore", href: "/samples", icon: TableCellsSplit },
 ];
@@ -30,13 +31,6 @@ const mainNavigation = [
 const bottomNavigation = [
   { name: "Settings", href: "/settings", icon: Settings },
   { name: "About", href: "/about", icon: HelpCircle },
-];
-
-// Mock chats data - will be replaced with API call later
-const recentChats = [
-  { id: "1", name: "Sample Inventory Count", active: true },
-  { id: "2", name: "Another Chat", active: false },
-  { id: "3", name: "Another Chat 2", active: false },
 ];
 
 // Mock cohorts data - will be replaced with API call later
@@ -48,15 +42,22 @@ const cohorts = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, signOut } = useAuth();
+  const { conversations, isLoading: conversationsLoading } = useConversations({ limit: 5 });
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Get current conversation ID from URL
+  const currentConversationId = searchParams.get("id");
 
   // Determine active route
   const isActive = (href: string) => {
-    if (href === "/chat") {
-      return pathname === "/chat" || pathname === "/";
-    }
     return pathname.startsWith(href);
+  };
+
+  // Check if a conversation is active
+  const isConversationActive = (conversationId: string) => {
+    return pathname === "/chat" && currentConversationId === conversationId;
   };
 
   if (isCollapsed) {
@@ -100,6 +101,21 @@ export function Sidebar() {
 
       {/* Main Navigation */}
       <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto scrollbar-thin">
+        {/* New Chat Button */}
+        <Link
+          href="/chat"
+          className={cn(
+            "flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base transition-all duration-200",
+            pathname === "/chat" && !currentConversationId
+              ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-normal"
+          )}
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          <span>New Chat</span>
+        </Link>
+
+        {/* Other Navigation Items */}
         {mainNavigation.map((item) => {
           const active = isActive(item.href);
           return (
@@ -122,26 +138,45 @@ export function Sidebar() {
         {/* Chats Section */}
         <div className="pt-4">
           <div className="h-8 px-2 flex items-center opacity-70">
-            <p className="text-base text-sidebar-foreground">Chats</p>
+            <p className="text-base text-sidebar-foreground">Recent Chats</p>
           </div>
           <div className="space-y-1 mt-1">
-            {recentChats.map((chat) => (
-              <button
-                key={chat.id}
-                className={cn(
-                  "flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
-                  chat.active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent"
-                )}
-              >
-                <span className="truncate">{chat.name}</span>
-              </button>
-            ))}
-            <button className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors w-full text-left opacity-70">
-              <MoreHorizontal className="h-4 w-4 shrink-0" />
-              <span>More</span>
-            </button>
+            {conversationsLoading ? (
+              <div className="px-3 py-2 text-base text-sidebar-foreground/50">
+                Loading...
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="px-3 py-2 text-base text-sidebar-foreground/50">
+                No conversations yet
+              </div>
+            ) : (
+              <>
+                {conversations.map((conversation) => (
+                  <Link
+                    key={conversation.id}
+                    href={`/chat?id=${conversation.id}`}
+                    className={cn(
+                      "flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
+                      isConversationActive(conversation.id)
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent"
+                    )}
+                  >
+                    <MessageCircle className="h-4 w-4 shrink-0 opacity-50" />
+                    <span className="truncate">
+                      {conversation.title || "Untitled Chat"}
+                    </span>
+                  </Link>
+                ))}
+                <Link 
+                  href="/history"
+                  className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors w-full text-left opacity-70"
+                >
+                  <MoreHorizontal className="h-4 w-4 shrink-0" />
+                  <span>View All</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

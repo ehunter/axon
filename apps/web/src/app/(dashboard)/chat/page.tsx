@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, type FC, forwardRef } from "react";
+import { Suspense, useEffect, useRef, useState, type FC, forwardRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ChatHeader } from "@/components/chat";
 import { useAxonRuntime } from "@/lib/assistant-ui/use-axon-runtime";
@@ -20,12 +20,34 @@ function ChatPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialMessageSent = useRef(false);
-  const { runtime, messages, sendInitialMessage } = useAxonRuntime();
+  const conversationLoaded = useRef(false);
+  const { runtime, messages, sendInitialMessage, loadConversation, clearMessages } = useAxonRuntime();
+  const [conversationTitle, setConversationTitle] = useState<string | null>(null);
 
-  // Handle initial message from URL query param
+  // Handle loading existing conversation from URL
+  useEffect(() => {
+    const conversationId = searchParams.get("id");
+    if (conversationId && !conversationLoaded.current) {
+      conversationLoaded.current = true;
+      // Load the existing conversation
+      loadConversation(conversationId).then((result) => {
+        if (result) {
+          setConversationTitle(result.title);
+        }
+      });
+    } else if (!conversationId && conversationLoaded.current) {
+      // URL changed to new chat - clear messages
+      conversationLoaded.current = false;
+      clearMessages();
+      setConversationTitle(null);
+    }
+  }, [searchParams, loadConversation, clearMessages]);
+
+  // Handle initial message from URL query param (for new chats)
   useEffect(() => {
     const initialMessage = searchParams.get("message");
-    if (initialMessage && !initialMessageSent.current && messages.length === 0) {
+    const conversationId = searchParams.get("id");
+    if (initialMessage && !initialMessageSent.current && messages.length === 0 && !conversationId) {
       initialMessageSent.current = true;
       // Clear the URL param
       router.replace("/chat", { scroll: false });
@@ -40,7 +62,7 @@ function ChatPageContent() {
       <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
         {/* Header */}
         <ChatHeader
-          title="New Chat"
+          title={conversationTitle || "New Chat"}
           onDropdownClick={() => {
             // TODO: Open conversation switcher
           }}
