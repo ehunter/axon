@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Dna, HelpCircle, Paperclip, ArrowUp, Sparkles, Briefcase, Lightbulb } from "lucide-react";
+import { Dna, HelpCircle, Paperclip, ArrowUp } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default function Home() {
@@ -24,13 +25,23 @@ export default function Home() {
             <ChatInputHome />
           </div>
           
-          {/* Category pills */}
-          <div className="flex flex-wrap justify-center gap-2 animate-fade-in-up">
-            <CategoryPill icon={<Dna className="h-4 w-4" />} label="Find Samples" />
-            <CategoryPill icon={<HelpCircle className="h-4 w-4" />} label="Learn" />
-            <CategoryPill icon={<Sparkles className="h-4 w-4" />} label="Explore" />
-            <CategoryPill icon={<Briefcase className="h-4 w-4" />} label="My Cohorts" />
-            <CategoryPill icon={<Lightbulb className="h-4 w-4" />} label="Suggestions" />
+          {/* Suggestion Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full animate-fade-in-up">
+            <SuggestionCard
+              icon={<Dna className="h-5 w-5" />}
+              title="Find Tissue Samples"
+              description="I need 8 Alzheimer's tissue samples and 8 control samples"
+            />
+            <SuggestionCard
+              icon={<HelpCircle className="h-5 w-5" />}
+              title="Answer Questions"
+              description="Why are Braak scores important when selecting tissue samples?"
+            />
+            <SuggestionCard
+              icon={<Dna className="h-5 w-5" />}
+              title="Inventory Management"
+              description="Pull up my samples from last cohort"
+            />
           </div>
         </div>
       </div>
@@ -38,21 +49,28 @@ export default function Home() {
   );
 }
 
-function CategoryPill({
+function SuggestionCard({
   icon,
-  label,
+  title,
+  description,
 }: {
   icon: React.ReactNode;
-  label: string;
+  title: string;
+  description: string;
 }) {
   return (
-    <button
-      type="button"
-      className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-transparent text-foreground hover:bg-muted transition-colors"
+    <Link 
+      href={`/chat?message=${encodeURIComponent(description)}`}
+      className="suggestion-card flex flex-col gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
     >
-      {icon}
-      <span className="text-base">{label}</span>
-    </button>
+      <div className="text-muted-foreground">
+        {icon}
+      </div>
+      <div className="space-y-1">
+        <h3 className="text-base font-medium text-card-foreground">{title}</h3>
+        <p className="text-sm text-muted-foreground leading-5">{description}</p>
+      </div>
+    </Link>
   );
 }
 
