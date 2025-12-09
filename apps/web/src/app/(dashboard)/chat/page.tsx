@@ -261,7 +261,7 @@ const Composer: FC = () => {
   const isRunning = useThread((state) => state.isRunning);
 
   return (
-    <ComposerPrimitive.Root className="flex items-center justify-between bg-input rounded-full px-5 py-4 shadow-sm">
+    <ComposerPrimitive.Root className="flex items-center justify-between bg-input rounded-full px-5 py-4 shadow-sm border border-transparent hover:border-muted-foreground/30 focus-within:border-muted-foreground/30 transition-colors">
       <ComposerPrimitive.Input
         autoFocus
         placeholder="Ask anything"
