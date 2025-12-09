@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, Search, MessageSquare, Database, ArrowRight, Dna, HelpCircle } from "lucide-react";
+import { Dna, HelpCircle } from "lucide-react";
 
 export default function Home() {
   return (
@@ -9,7 +9,7 @@ export default function Home() {
       
       {/* Main content */}
       <div className="flex-1 p-4 pr-4 pt-4 pb-0">
-        <div className="main-container bg-surface h-full flex flex-col items-center">
+        <div className="main-container h-full flex flex-col items-center">
           {/* Header spacer */}
           <div className="w-full p-6" />
           
@@ -17,7 +17,7 @@ export default function Home() {
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-20 w-full max-w-[700px]">
             {/* Greeting */}
             <div className="w-full space-y-8">
-              <h1 className="text-display text-white animate-fade-in">
+              <h1 className="text-display text-surface-foreground animate-fade-in">
                 What can I help you with?
               </h1>
               
@@ -46,7 +46,7 @@ export default function Home() {
           <div className="w-full max-w-[700px] px-10 py-8 space-y-4">
             <Link 
               href="/chat"
-              className="block w-full bg-[#343b50] rounded-[20px] px-5 py-4 text-[#969598] hover:bg-[#3d4560] transition-colors"
+              className="block w-full input-base text-muted-foreground hover:bg-secondary/50 transition-colors"
             >
               Ask anything
             </Link>
@@ -74,12 +74,12 @@ function SuggestionCard({
       href="/chat"
       className="suggestion-card flex flex-col gap-6"
     >
-      <div className="text-white">
+      <div className="text-card-foreground">
         {icon}
       </div>
       <div className="space-y-2">
-        <h3 className="text-base font-semibold text-white leading-5">{title}</h3>
-        <p className="text-sm text-[#d7d8da] leading-5">{description}</p>
+        <h3 className="text-base font-semibold text-card-foreground leading-5">{title}</h3>
+        <p className="text-sm text-card-foreground/80 leading-5">{description}</p>
       </div>
     </Link>
   );

@@ -4,133 +4,137 @@
 
 @layer base {
   :root {
-    /* Oskar Design System - Light Mode (minimal, for potential future use) */
-    --radius: 8px;
+    /* 
+     * Oskar Design System - Light Mode
+     * All colors in HSL format for shadcn/ui compatibility
+     * Format: H S% L% (hue saturation lightness)
+     */
+    --radius: 0.5rem;
     
     /* Backgrounds */
-    --background: #ffffff;
-    --foreground: #1c2031;
+    --background: 0 0% 100%;
+    --foreground: 227 29% 15%;
     
     /* Cards & Popovers */
-    --card: #f8f9fa;
-    --card-foreground: #1c2031;
-    --popover: #ffffff;
-    --popover-foreground: #1c2031;
+    --card: 210 17% 98%;
+    --card-foreground: 227 29% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 227 29% 15%;
     
     /* Primary */
-    --primary: #1c2031;
-    --primary-foreground: #fafafa;
+    --primary: 227 29% 15%;
+    --primary-foreground: 0 0% 98%;
     
     /* Secondary */
-    --secondary: #f1f3f5;
-    --secondary-foreground: #1c2031;
+    --secondary: 210 17% 95%;
+    --secondary-foreground: 227 29% 15%;
     
     /* Muted */
-    --muted: #e9ecef;
-    --muted-foreground: #737373;
+    --muted: 210 17% 93%;
+    --muted-foreground: 0 0% 45%;
     
     /* Accent */
-    --accent: #e9ecef;
-    --accent-foreground: #1c2031;
+    --accent: 210 17% 93%;
+    --accent-foreground: 227 29% 15%;
     
     /* Destructive */
-    --destructive: #ef4444;
-    --destructive-foreground: #fafafa;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     
     /* Borders & Inputs */
-    --border: #dee2e6;
-    --input: #dee2e6;
-    --ring: #1c2031;
+    --border: 214 14% 89%;
+    --input: 214 14% 89%;
+    --ring: 227 29% 15%;
     
     /* Charts */
-    --chart-1: #383b4b;
-    --chart-2: #4a4d5e;
-    --chart-3: #5c5f71;
-    --chart-4: #6e7184;
-    --chart-5: #808397;
+    --chart-1: 225 14% 26%;
+    --chart-2: 225 12% 32%;
+    --chart-3: 225 10% 38%;
+    --chart-4: 225 8% 44%;
+    --chart-5: 225 6% 50%;
     
-    /* Sidebar */
-    --sidebar: #111627;
-    --sidebar-foreground: #fafafa;
-    --sidebar-primary: #383b4b;
-    --sidebar-primary-foreground: #fafafa;
-    --sidebar-accent: #2f3240;
-    --sidebar-accent-foreground: #fafafa;
-    --sidebar-border: #27282a;
-    --sidebar-ring: #383b4b;
-    --sidebar-muted: #818ab8;
+    /* Sidebar (dark even in light mode for contrast) */
+    --sidebar: 227 45% 11%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 225 14% 26%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 228 16% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 225 5% 16%;
+    --sidebar-ring: 225 14% 26%;
+    --sidebar-muted: 229 32% 62%;
     
     /* Surface (main content area) */
-    --surface: #1c2031;
-    --surface-foreground: #fafafa;
+    --surface: 227 29% 15%;
+    --surface-foreground: 0 0% 98%;
   }
 
   .dark {
-    /* Oskar Design System - Dark Mode (primary theme) */
+    /* 
+     * Oskar Design System - Dark Mode (primary theme)
+     * Hex reference comments for design handoff
+     */
     
-    /* Page background - darkest */
-    --background: #1c2031;
-    --foreground: #fafafa;
+    /* Page background - #1c2031 */
+    --background: 227 29% 15%;
+    --foreground: 0 0% 98%;
     
-    /* Cards - slightly lighter than background */
-    --card: #2f3240;
-    --card-foreground: #fafafa;
-    --card-border: #27282a;
+    /* Cards - #2f3240 */
+    --card: 228 16% 22%;
+    --card-foreground: 0 0% 98%;
     
-    /* Popovers */
-    --popover: #2f3240;
-    --popover-foreground: #fafafa;
+    /* Popovers - #2f3240 */
+    --popover: 228 16% 22%;
+    --popover-foreground: 0 0% 98%;
     
-    /* Primary - for buttons, links */
-    --primary: #fafafa;
-    --primary-foreground: #1c2031;
+    /* Primary - #fafafa (light on dark) */
+    --primary: 0 0% 98%;
+    --primary-foreground: 227 29% 15%;
     
-    /* Secondary */
-    --secondary: #383b4b;
-    --secondary-foreground: #fafafa;
+    /* Secondary - #383b4b */
+    --secondary: 225 14% 26%;
+    --secondary-foreground: 0 0% 98%;
     
-    /* Muted */
-    --muted: #383b4b;
-    --muted-foreground: #737373;
+    /* Muted - #383b4b */
+    --muted: 225 14% 26%;
+    --muted-foreground: 0 0% 45%;
     
-    /* Accent - hover states */
-    --accent: #383b4b;
-    --accent-foreground: #fafafa;
+    /* Accent - #383b4b */
+    --accent: 225 14% 26%;
+    --accent-foreground: 0 0% 98%;
     
     /* Destructive */
-    --destructive: #ef4444;
-    --destructive-foreground: #fafafa;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     
-    /* Borders & Inputs */
-    --border: #27282a;
-    --input: #343b50;
-    --ring: #383b4b;
+    /* Borders - #27282a */
+    --border: 225 5% 16%;
+    /* Input - #343b50 */
+    --input: 222 22% 27%;
+    /* Ring - #383b4b */
+    --ring: 225 14% 26%;
     
     /* Charts */
-    --chart-1: #fafafa;
-    --chart-2: #d7d8da;
-    --chart-3: #969598;
-    --chart-4: #737373;
-    --chart-5: #383b4b;
+    --chart-1: 0 0% 98%;
+    --chart-2: 0 0% 84%;
+    --chart-3: 0 0% 59%;
+    --chart-4: 0 0% 45%;
+    --chart-5: 225 14% 26%;
     
-    /* Sidebar - darker than page background */
-    --sidebar: #111627;
-    --sidebar-foreground: #fafafa;
-    --sidebar-primary: #383b4b;
-    --sidebar-primary-foreground: #fafafa;
-    --sidebar-accent: #2f3240;
-    --sidebar-accent-foreground: #fafafa;
-    --sidebar-border: #27282a;
-    --sidebar-ring: #383b4b;
-    --sidebar-muted: #818ab8;
+    /* Sidebar - #111627 (darker than background) */
+    --sidebar: 227 45% 11%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 225 14% 26%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 228 16% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 225 5% 16%;
+    --sidebar-ring: 225 14% 26%;
+    --sidebar-muted: 229 32% 62%;
     
-    /* Surface - main content area background */
-    --surface: #1c2031;
-    --surface-foreground: #fafafa;
-    
-    /* Input specific */
-    --input-bg: #343b50;
-    --input-placeholder: #969598;
+    /* Surface - main content area #1c2031 */
+    --surface: 227 29% 15%;
+    --surface-foreground: 0 0% 98%;
   }
 }
 
@@ -140,8 +144,8 @@
   }
 
   ::selection {
-    background-color: #383b4b;
-    color: #fafafa;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
   }
 
   html {
@@ -254,7 +258,7 @@
   /* Scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #383b4b transparent;
+    scrollbar-color: hsl(var(--muted)) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -267,12 +271,12 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #383b4b;
+    background-color: hsl(var(--muted));
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: #4a4d5e;
+    background-color: hsl(var(--muted-foreground));
   }
 
   .no-scrollbar {
@@ -288,11 +292,11 @@
 @layer components {
   /* Card hover effect */
   .card-interactive {
-    @apply transition-all duration-200 border border-[#27282a];
+    @apply transition-all duration-200 border border-border;
   }
   
   .card-interactive:hover {
-    @apply border-[#383b4b];
+    @apply border-secondary;
   }
 
   /* Menu item styles */
@@ -309,8 +313,8 @@
   .input-base {
     @apply w-full rounded-[20px] border-0 px-5 py-4 text-sm transition-colors;
     @apply focus:outline-none focus:ring-0;
-    @apply placeholder:text-[#969598];
-    background-color: #343b50;
+    @apply placeholder:text-muted-foreground;
+    @apply bg-input text-foreground;
   }
 
   /* Message bubbles */
@@ -324,8 +328,7 @@
 
   /* Typing indicator */
   .typing-dot {
-    @apply w-2 h-2 rounded-full;
-    background-color: #969598;
+    @apply w-2 h-2 rounded-full bg-muted-foreground;
     animation: typing 1.4s ease-in-out infinite;
   }
 
@@ -339,13 +342,13 @@
 
   /* Main content container with rounded top */
   .main-container {
-    @apply rounded-tl-3xl rounded-tr-3xl;
+    @apply rounded-tl-3xl rounded-tr-3xl bg-surface;
     box-shadow: 0px 2px 5px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
   }
 
   /* Suggestion card */
   .suggestion-card {
-    @apply bg-card border border-[#27282a] rounded-lg p-4 transition-all duration-200;
-    @apply hover:border-[#383b4b] cursor-pointer;
+    @apply bg-card border border-border rounded-lg p-4 transition-all duration-200;
+    @apply hover:border-secondary cursor-pointer;
   }
 }
