@@ -11,7 +11,8 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Protected routes that require authentication
-  const protectedRoutes = ["/chat", "/samples", "/history", "/settings"];
+  // Note: /chat is public to allow trying the agent without login
+  const protectedRoutes = ["/samples", "/history", "/settings"];
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
