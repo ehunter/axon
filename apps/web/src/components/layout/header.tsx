@@ -47,10 +47,10 @@ export function Header() {
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 p-2 rounded-lg hover:bg-secondary transition-colors"
           >
-            <div className="h-8 w-8 rounded-full bg-brand-500/10 flex items-center justify-center">
-              <User className="h-4 w-4 text-brand-500" />
+            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
+              <User className="h-5 w-5" />
             </div>
-            <span className="hidden md:block text-sm font-medium">
+            <span className="hidden md:block text-base font-medium">
               {user?.name || "User"}
             </span>
           </button>
@@ -59,14 +59,14 @@ export function Header() {
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-card shadow-lg py-1 z-50 animate-fade-in">
               <div className="px-4 py-3 border-b border-border">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <p className="text-base font-medium">{user?.name}</p>
+                <p className="text-base text-muted-foreground">{user?.email}</p>
               </div>
               <button
                 onClick={() => signOut()}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-2 text-base text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
                 Sign Out
               </button>
             </div>

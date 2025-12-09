@@ -15,29 +15,29 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold mb-4">Profile</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Name</label>
+                <label className="block text-base font-medium mb-1.5">Name</label>
                 <input
                   type="text"
                   placeholder="Your name"
-                  className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-4 py-2 rounded-lg border border-input bg-background text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Email</label>
+                <label className="block text-base font-medium mb-1.5">Email</label>
                 <input
                   type="email"
                   placeholder="you@institution.edu"
-                  className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-4 py-2 rounded-lg border border-input bg-background text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">
+                <label className="block text-base font-medium mb-1.5">
                   Institution
                 </label>
                 <input
                   type="text"
                   placeholder="Your institution"
-                  className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full px-4 py-2 rounded-lg border border-input bg-background text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             </div>
@@ -50,7 +50,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Dark Mode</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Use dark theme for the interface
                   </p>
                 </div>
@@ -72,6 +72,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-
-

@@ -301,7 +301,7 @@
 
   /* Menu item styles */
   .menu-item {
-    @apply flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors;
+    @apply flex items-center gap-2 px-3 py-2 rounded-md text-base transition-colors;
     @apply text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground;
   }
 
@@ -311,7 +311,7 @@
 
   /* Input styles */
   .input-base {
-    @apply w-full rounded-[20px] border-0 px-5 py-4 text-sm transition-colors;
+    @apply w-full rounded-[20px] border-0 px-5 py-4 text-base transition-colors;
     @apply focus:outline-none focus:ring-0;
     @apply placeholder:text-muted-foreground;
     @apply bg-input text-foreground;

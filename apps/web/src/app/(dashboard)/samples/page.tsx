@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Filter, Database, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Database } from "lucide-react";
 
 const sampleData = [
   {
@@ -50,7 +49,7 @@ export default function SamplesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search samples..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-input bg-background text-base focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
@@ -59,17 +58,17 @@ export default function SamplesPage() {
           {sampleData.map((sample) => (
             <div
               key={sample.id}
-              className="p-4 rounded-xl border border-border bg-card hover:border-brand-500/50 transition-all"
+              className="p-4 rounded-xl border border-border bg-card hover:border-secondary transition-all"
             >
               <div className="flex items-center gap-4">
-                <Database className="h-6 w-6 text-brand-500" />
+                <Database className="h-6 w-6" />
                 <div className="flex-1">
                   <h3 className="font-semibold">{sample.external_id}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {sample.diagnosis} | {sample.source_bank}
                   </p>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-base text-muted-foreground">
                   RIN: {sample.rin} | PMI: {sample.pmi}h
                 </div>
               </div>
@@ -80,6 +79,3 @@ export default function SamplesPage() {
     </div>
   );
 }
-
-
-
