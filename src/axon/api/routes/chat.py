@@ -169,3 +169,102 @@ async def chat(
     except Exception as e:
         logger.exception("Error during chat")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ConversationListItem(BaseModel):
+    """Single conversation in list response."""
+    id: str
+    title: str | None
+    message_count: int
+    created_at: str
+    updated_at: str
+
+
+class ConversationsResponse(BaseModel):
+    """Response for list conversations."""
+    conversations: list[ConversationListItem]
+
+
+class MessageItem(BaseModel):
+    """Single message in conversation."""
+    id: str
+    role: str
+    content: str
+    created_at: str
+
+
+class ConversationDetailResponse(BaseModel):
+    """Response for single conversation with messages."""
+    id: str
+    title: str | None
+    messages: list[MessageItem]
+    created_at: str
+    updated_at: str
+
+
+@router.get("/conversations", response_model=ConversationsResponse)
+async def list_conversations(
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> ConversationsResponse:
+    """List recent conversations.
+    
+    Args:
+        limit: Maximum number of conversations to return (default 20)
+        
+    Returns:
+        List of conversations with metadata
+    """
+    persistence_service = ConversationService(db)
+    
+    conversations = await persistence_service.list_conversations(limit=limit)
+    
+    return ConversationsResponse(
+        conversations=[
+            ConversationListItem(
+                id=conv.id,
+                title=conv.title,
+                message_count=conv.message_count,
+                created_at=conv.created_at.isoformat(),
+                updated_at=conv.updated_at.isoformat(),
+            )
+            for conv in conversations
+        ]
+    )
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)
+async def get_conversation(
+    conversation_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> ConversationDetailResponse:
+    """Get a specific conversation with its messages.
+    
+    Args:
+        conversation_id: The conversation ID to load
+        
+    Returns:
+        Conversation details with all messages
+    """
+    persistence_service = ConversationService(db)
+    
+    conversation = await persistence_service.load_conversation(conversation_id)
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    return ConversationDetailResponse(
+        id=conversation.id,
+        title=conversation.title,
+        messages=[
+            MessageItem(
+                id=msg.id,
+                role=msg.role,
+                content=msg.content,
+                created_at=msg.created_at.isoformat(),
+            )
+            for msg in conversation.messages
+        ],
+        created_at=conversation.created_at.isoformat(),
+        updated_at=conversation.updated_at.isoformat(),
+    )

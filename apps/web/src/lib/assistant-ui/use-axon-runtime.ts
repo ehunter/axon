@@ -297,12 +297,53 @@ export function useAxonRuntime() {
     }
   }, [isRunning]);
 
+  // Load an existing conversation by ID
+  const loadConversation = useCallback(async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.error("Conversation not found:", conversationId);
+          return null;
+        }
+        throw new Error("Failed to load conversation");
+      }
+
+      const data = await response.json();
+      
+      // Set the conversation ID
+      currentConversationId = data.id;
+      
+      // Convert messages to our format
+      const loadedMessages: AxonMessage[] = data.messages.map(
+        (msg: { id: string; role: string; content: string }) => ({
+          id: msg.id,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        })
+      );
+      
+      setMessages(loadedMessages);
+      
+      return {
+        id: data.id,
+        title: data.title,
+        messageCount: data.messages.length,
+      };
+    } catch (err) {
+      console.error("Error loading conversation:", err);
+      return null;
+    }
+  }, []);
+
   return {
     runtime,
     messages,
     isRunning,
     clearMessages,
     sendInitialMessage,
+    loadConversation,
     conversationId: currentConversationId,
   };
 }
