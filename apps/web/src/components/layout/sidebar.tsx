@@ -155,7 +155,7 @@ export function Sidebar() {
                     key={conversation.id}
                     href={`/chat?id=${conversation.id}`}
                     className={cn(
-                      "flex items-center h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
+                      "flex items-center h-8 px-3 py-1 rounded-md text-base w-full text-left transition-colors",
                       isConversationActive(conversation.id)
                         ? "bg-sidebar-primary text-sidebar-primary-foreground"
                         : "text-sidebar-foreground hover:bg-sidebar-accent"
