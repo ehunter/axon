@@ -19,7 +19,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       <div
         data-message-bubble
         className={cn(
-          "max-w-[65%] px-4 py-2.5",
+          "w-full px-4 py-2.5",
           isUser
             ? "bg-secondary border border-border rounded-2xl rounded-tr-sm"
             : "text-foreground"
