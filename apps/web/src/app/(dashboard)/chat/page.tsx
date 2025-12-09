@@ -181,7 +181,7 @@ const Composer: FC = () => {
         <ComposerPrimitive.Cancel asChild>
           <button
             type="button"
-            className="flex items-center justify-center rounded-full p-1 bg-destructive text-destructive-foreground transition-colors"
+            className="flex items-center justify-center rounded-full p-1 bg-foreground text-background transition-colors"
             aria-label="Cancel"
           >
             <Square className="h-5 w-5" />
