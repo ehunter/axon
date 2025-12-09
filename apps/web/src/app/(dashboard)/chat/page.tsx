@@ -20,24 +20,26 @@ function ChatPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialMessageSent = useRef(false);
-  const conversationLoaded = useRef(false);
+  const loadedConversationId = useRef<string | null>(null);
   const { runtime, messages, sendInitialMessage, loadConversation, clearMessages } = useAxonRuntime();
   const [conversationTitle, setConversationTitle] = useState<string | null>(null);
 
   // Handle loading existing conversation from URL
   useEffect(() => {
     const conversationId = searchParams.get("id");
-    if (conversationId && !conversationLoaded.current) {
-      conversationLoaded.current = true;
+    
+    // If conversation ID changed, load the new conversation
+    if (conversationId && conversationId !== loadedConversationId.current) {
+      loadedConversationId.current = conversationId;
       // Load the existing conversation
       loadConversation(conversationId).then((result) => {
         if (result) {
           setConversationTitle(result.title);
         }
       });
-    } else if (!conversationId && conversationLoaded.current) {
+    } else if (!conversationId && loadedConversationId.current) {
       // URL changed to new chat - clear messages
-      conversationLoaded.current = false;
+      loadedConversationId.current = null;
       clearMessages();
       setConversationTitle(null);
     }
