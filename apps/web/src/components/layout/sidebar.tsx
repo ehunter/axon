@@ -137,7 +137,7 @@ export function Sidebar() {
         {/* Chats Section */}
         <div className="pt-4">
           <div className="h-8 px-2 flex items-center opacity-70">
-            <p className="text-base text-sidebar-foreground">Recent Chats</p>
+            <p className="text-[0.85rem] text-sidebar-foreground">Recent Chats</p>
           </div>
           <div className="space-y-1 mt-1">
             {conversationsLoading ? (
@@ -181,7 +181,7 @@ export function Sidebar() {
         {/* Cohorts Section */}
         <div className="pt-4">
           <div className="h-8 px-2 flex items-center opacity-70">
-            <p className="text-base text-sidebar-foreground">Cohorts</p>
+            <p className="text-[0.85rem] text-sidebar-foreground">Cohorts</p>
           </div>
           <div className="space-y-1 mt-1">
             {cohorts.map((cohort) => (
