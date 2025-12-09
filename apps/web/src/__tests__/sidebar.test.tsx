@@ -130,7 +130,7 @@ describe('Sidebar Component', () => {
       expect(userSection).toBeInTheDocument();
     });
 
-    test('handles missing user gracefully', () => {
+    test('shows Sign In link when user is not authenticated', () => {
       mockUseAuth.mockReturnValue({
         status: 'unauthenticated',
         data: null,
@@ -138,7 +138,9 @@ describe('Sidebar Component', () => {
         signOut: jest.fn(),
       });
       render(<Sidebar />);
-      // Should not crash, user section may be hidden or show placeholder
+      // Should show Sign In link instead of user profile
+      expect(screen.getByText('Sign In')).toBeInTheDocument();
+      expect(screen.queryByText('Test User')).not.toBeInTheDocument();
     });
   });
 

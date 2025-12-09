@@ -13,6 +13,7 @@ import {
   HelpCircle,
   ChevronsUpDown,
   PanelLeft,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -150,9 +151,9 @@ export function Sidebar() {
           ))}
         </div>
 
-        {/* User Profile */}
-        {user && (
-          <div className="px-2 py-2 border-t border-sidebar-border">
+        {/* User Profile or Sign In */}
+        <div className="px-2 py-2 border-t border-sidebar-border">
+          {user ? (
             <div className="flex items-center gap-2 px-2 py-2">
               <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                 {user.image ? (
@@ -180,8 +181,16 @@ export function Sidebar() {
                 <ChevronsUpDown className="h-4 w-4 text-sidebar-foreground/70" />
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            >
+              <LogIn className="h-4 w-4 shrink-0" />
+              <span>Sign In</span>
+            </Link>
+          )}
+        </div>
       </div>
     </aside>
   );
