@@ -68,27 +68,27 @@ function LoginForm() {
         <div className="p-8 rounded-2xl border border-border bg-card">
           {/* Error message */}
           {authError && (
-            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-base text-destructive">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
               {authError}
             </div>
           )}
 
           <form onSubmit={handleCredentialsLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Email</label>
+              <label className="block text-base font-medium mb-1.5 text-foreground">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@institution.edu"
-                className="w-full px-4 py-3 rounded-xl border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-4 py-3 rounded-xl border border-border bg-input text-foreground text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
                 disabled={isLoading}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">
+              <label className="block text-base font-medium mb-1.5 text-foreground">
                 Password
               </label>
               <input
@@ -96,13 +96,13 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full px-4 py-3 rounded-xl border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-4 py-3 rounded-xl border border-border bg-input text-foreground text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
                 disabled={isLoading}
               />
             </div>
 
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-base">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="rounded border-border bg-input" />
                 <span className="text-muted-foreground">Remember me</span>
@@ -122,7 +122,7 @@ function LoginForm() {
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Signing in...
                 </>
               ) : (
@@ -132,7 +132,7 @@ function LoginForm() {
           </form>
 
           {/* Demo credentials hint */}
-          <div className="mt-4 p-3 rounded-lg bg-secondary text-xs text-secondary-foreground">
+          <div className="mt-4 p-3 rounded-lg bg-secondary text-base text-secondary-foreground">
             <strong>Demo:</strong> Use{" "}
             <code className="px-1 py-0.5 rounded bg-muted">
               demo@axon.research
@@ -145,7 +145,7 @@ function LoginForm() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
+            <div className="relative flex justify-center text-base uppercase">
               <span className="bg-card px-2 text-muted-foreground">
                 Or continue with
               </span>

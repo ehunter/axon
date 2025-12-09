@@ -83,12 +83,12 @@ export default function ChatPage() {
 
           {isLoading && (
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center">
-                <Brain className="h-4 w-4 text-brand-500" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+                <Brain className="h-5 w-5" />
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Thinking...</span>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-base">Thinking...</span>
               </div>
             </div>
           )}
@@ -109,7 +109,7 @@ export default function ChatPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="Describe your research needs..."
                 rows={1}
-                className="w-full resize-none rounded-xl border border-input bg-background px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
+                className="w-full resize-none rounded-xl border border-input bg-background px-4 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
                 disabled={isLoading}
               />
             </div>
@@ -130,7 +130,7 @@ export default function ChatPage() {
               )}
             </button>
           </div>
-          <p className="mt-2 text-xs text-muted-foreground text-center">
+          <p className="mt-2 text-base text-muted-foreground text-center">
             Press Enter to send, Shift+Enter for new line
           </p>
         </form>
@@ -152,16 +152,16 @@ function MessageBubble({ message }: { message: Message }) {
       {/* Avatar */}
       <div
         className={cn(
-          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary" : "bg-brand-500/10"
+          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+          isUser ? "bg-primary" : "bg-secondary"
         )}
       >
         {isUser ? (
-          <span className="text-xs font-medium text-primary-foreground">
+          <span className="text-base font-medium text-primary-foreground">
             You
           </span>
         ) : (
-          <Brain className="h-4 w-4 text-brand-500" />
+          <Brain className="h-5 w-5" />
         )}
       </div>
 
@@ -174,7 +174,7 @@ function MessageBubble({ message }: { message: Message }) {
             : "bg-secondary text-secondary-foreground"
         )}
       >
-        <div className="prose prose-sm dark:prose-invert max-w-none">
+        <div className="prose prose-base dark:prose-invert max-w-none">
           {message.content.split("\n").map((line, i) => (
             <p key={i} className={cn("mb-2 last:mb-0", !line && "h-4")}>
               {line}
@@ -185,6 +185,3 @@ function MessageBubble({ message }: { message: Message }) {
     </div>
   );
 }
-
-
-

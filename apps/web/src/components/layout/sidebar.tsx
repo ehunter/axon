@@ -42,7 +42,7 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium transition-all duration-200",
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -60,14 +60,14 @@ export function Sidebar() {
         {/* User info */}
         {user && (
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
-              <User className="h-4 w-4" />
+            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
+              <User className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
+              <p className="text-base font-medium truncate">
                 {user.name || "Researcher"}
               </p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">
+              <p className="text-base text-sidebar-foreground/50 truncate">
                 {user.email}
               </p>
             </div>
@@ -77,7 +77,7 @@ export function Sidebar() {
         {/* Sign out button */}
         <button
           onClick={() => signOut()}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-base text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
         >
           <LogOut className="h-5 w-5" />
           Sign Out

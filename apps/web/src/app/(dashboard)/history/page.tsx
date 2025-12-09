@@ -41,19 +41,19 @@ export default function HistoryPage() {
             <Link
               key={conversation.id}
               href={`/chat?conversation=${conversation.id}`}
-              className="block p-4 rounded-xl border border-border bg-card hover:border-brand-500/50 hover:shadow-md transition-all group"
+              className="block p-4 rounded-xl border border-border bg-card hover:border-secondary transition-all group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-brand-500/10 flex items-center justify-center group-hover:bg-brand-500 transition-colors">
-                    <MessageSquare className="h-5 w-5 text-brand-500 group-hover:text-white transition-colors" />
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-primary transition-colors">
+                    <MessageSquare className="h-5 w-5 group-hover:text-primary-foreground transition-colors" />
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">{conversation.title}</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4 text-base text-muted-foreground">
                       <span>{conversation.message_count} messages</span>
                       <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
+                        <Clock className="h-4 w-4" />
                         {formatRelativeTime(conversation.updated_at)}
                       </span>
                     </div>
@@ -66,7 +66,7 @@ export default function HistoryPage() {
                   }}
                   className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
               </div>
             </Link>
@@ -92,6 +92,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-
-

@@ -45,7 +45,7 @@ export default function Home() {
           {/* Footer with chat input */}
           <div className="w-full max-w-[700px] px-10 py-8 space-y-4">
             <ChatInputPreview />
-            <p className="text-sm text-muted-foreground text-center">
+            <p className="text-base text-muted-foreground text-center">
               Axon is in Beta and can make mistakes. Please check your tissue recommendations
             </p>
           </div>
@@ -73,8 +73,8 @@ function SuggestionCard({
         {icon}
       </div>
       <div className="space-y-2">
-        <h3 className="text-base font-semibold text-card-foreground leading-5">{title}</h3>
-        <p className="text-sm text-card-foreground/80 leading-5">{description}</p>
+        <h3 className="text-base font-semibold text-card-foreground leading-6">{title}</h3>
+        <p className="text-base text-card-foreground/80 leading-6">{description}</p>
       </div>
     </Link>
   );
@@ -88,20 +88,20 @@ function ChatInputPreview() {
     >
       <div className="flex flex-col justify-between h-full">
         {/* Placeholder text */}
-        <p className="text-sm text-muted-foreground leading-5">
+        <p className="text-base text-muted-foreground leading-6">
           Ask anything
         </p>
         
         {/* Bottom row with attach and send */}
         <div className="flex items-center justify-between">
           {/* Attach button */}
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Paperclip className="h-4 w-4" />
-            <span className="text-xs font-medium">Attach</span>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Paperclip className="h-5 w-5" />
+            <span className="text-base font-medium">Attach</span>
           </div>
           
           {/* Send button */}
-          <div className="bg-primary text-primary-foreground rounded-full p-1 group-hover:bg-primary/90 transition-colors">
+          <div className="bg-primary text-primary-foreground rounded-full p-1.5 group-hover:bg-primary/90 transition-colors">
             <ArrowUp className="h-5 w-5" />
           </div>
         </div>
