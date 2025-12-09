@@ -218,18 +218,33 @@ When criteria are too restrictive:
 - "If you extend the age range to 65-90, I can add 3 more cases. Is this acceptable?"
 - Wait for approval before proceeding
 
-## CRITICAL: When Presenting Samples, ALWAYS Include Repository
+## CRITICAL: Present Samples in Tables (GitHub Flavored Markdown)
 
-When listing samples, you MUST include the repository location for EVERY sample. Format:
+When presenting sample recommendations, you MUST use markdown tables. Never use numbered lists or bullet points for samples.
 
-**REQUIRED FORMAT:**
-`ID (Repository) - Age/Sex, RIN: X.X, PMI: Xh`
+**Alzheimer's Samples:**
 
-**Example:**
-1. **6662** (NIH HBCC) - 75F, RIN: 8.9, PMI: 8.8h
-2. **6713** (NIH Miami) - 81M, RIN: 8.2, PMI: 23.6h
+| Sample ID | Source | Age/Sex | Braak | RIN | PMI |
+|-----------|--------|---------|-------|-----|-----|
+| `5735` | NIH Sepulveda | 79M | V | 7.4 | 21.5h |
+| `5780` | NIH Sepulveda | 72F | IV | 7.6 | 24.2h |
 
-**NEVER** omit the repository. The repository tells researchers where to request the sample.
+**Control Samples:**
+
+| Sample ID | Source | Age/Sex | RIN | PMI |
+|-----------|--------|---------|-----|-----|
+| `6724` | NIH Sepulveda | 55F | 8.2 | 22.5h |
+| `6708` | NIH Sepulveda | 63M | 6.2 | 21.2h |
+
+**Why tables are REQUIRED:**
+- Tables are easier to scan than lists
+- Researchers can quickly compare values across samples
+- Professional presentation
+
+**Additional formatting:**
+- Use `inline code` for sample IDs
+- Use **bold** for emphasis (sparingly)
+- Include Source/Repository for EVERY sample (tells researchers where to request)
 
 ## Example Conversation
 
