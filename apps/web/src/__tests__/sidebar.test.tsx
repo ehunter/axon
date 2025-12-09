@@ -26,19 +26,14 @@ describe('Sidebar Component', () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue('/chat');
     mockUseAuth.mockReturnValue({
-      status: 'authenticated',
-      data: {
-        user: {
-          id: '1',
-          name: 'Test User',
-          email: 'test@example.com',
-        },
-      },
       user: {
         id: '1',
         name: 'Test User',
         email: 'test@example.com',
       },
+      isLoading: false,
+      isAuthenticated: true,
+      signIn: jest.fn(),
       signOut: jest.fn(),
     });
   });
@@ -132,9 +127,10 @@ describe('Sidebar Component', () => {
 
     test('shows Sign In link when user is not authenticated', () => {
       mockUseAuth.mockReturnValue({
-        status: 'unauthenticated',
-        data: null,
         user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        signIn: jest.fn(),
         signOut: jest.fn(),
       });
       render(<Sidebar />);
