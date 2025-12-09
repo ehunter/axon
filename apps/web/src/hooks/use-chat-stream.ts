@@ -93,14 +93,17 @@ export function useChatStream(options: UseChatStreamOptions = {}) {
               const event: StreamEvent = JSON.parse(line.slice(6));
 
               if (event.type === "text") {
-                // Append text to assistant message
+                // Append text to assistant message (immutable update)
                 setMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMessage = updated[updated.length - 1];
-                  if (lastMessage.role === "assistant") {
-                    lastMessage.content += event.content;
+                  const lastIndex = prev.length - 1;
+                  const lastMessage = prev[lastIndex];
+                  if (lastMessage?.role === "assistant") {
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...lastMessage, content: lastMessage.content + event.content },
+                    ];
                   }
-                  return updated;
+                  return prev;
                 });
               } else if (event.type === "error") {
                 throw new Error(event.content);
