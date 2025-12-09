@@ -210,24 +210,30 @@ const AssistantMessageText: FC = () => {
               {children}
             </pre>
           ),
-          // Tables
+          // Tables - use muted-foreground/30 for more visible borders in dark mode
           table: ({ children }) => (
             <div className="overflow-x-auto my-4">
-              <table className="min-w-full border-collapse text-sm">
+              <table className="min-w-full border-collapse text-sm border border-muted-foreground/30">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-muted/50">{children}</thead>
+            <thead className="bg-muted">{children}</thead>
+          ),
+          tbody: ({ children }) => (
+            <tbody>{children}</tbody>
+          ),
+          tr: ({ children }) => (
+            <tr className="border-b border-muted-foreground/30 even:bg-muted/30">{children}</tr>
           ),
           th: ({ children }) => (
-            <th className="border border-border px-3 py-2 text-left font-semibold">
+            <th className="border border-muted-foreground/30 px-3 py-2 text-left font-semibold text-foreground">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="border border-border px-3 py-2">{children}</td>
+            <td className="border border-muted-foreground/30 px-3 py-2">{children}</td>
           ),
           // Lists
           ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
