@@ -9,7 +9,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ title, onDropdownClick }: ChatHeaderProps) {
   return (
-    <div className="flex items-center justify-between p-6">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
       <button
         type="button"
         onClick={onDropdownClick}

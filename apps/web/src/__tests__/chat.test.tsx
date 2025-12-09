@@ -176,10 +176,18 @@ describe('ChatHeader Component', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('renders with border styling', () => {
+  it('renders with border styling on button', () => {
     render(<ChatHeader title="Test Chat" />);
     const button = screen.getByRole('button');
     expect(button).toHaveClass('border', 'border-border');
+  });
+
+  it('renders with bottom border on container', () => {
+    render(<ChatHeader title="Test Chat" />);
+    // The outer div contains the border-b class
+    const button = screen.getByRole('button');
+    const container = button.parentElement;
+    expect(container).toHaveClass('border-b', 'border-border');
   });
 
   it('calls onDropdownClick when clicked', () => {
