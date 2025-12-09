@@ -350,3 +350,4 @@ class TestGetSelectionSummary:
         assert summary["total"] == 5
 
 
+

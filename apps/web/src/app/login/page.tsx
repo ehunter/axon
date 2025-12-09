@@ -50,22 +50,22 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-brand-950/10 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-4">
-            <Brain className="h-10 w-10 text-brand-500" />
-            <span className="text-2xl font-bold text-gradient">Axon</span>
+            <Brain className="h-10 w-10 text-white" />
+            <span className="text-2xl font-bold text-white">Axon</span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold mb-2 text-white">Welcome back</h1>
+          <p className="text-[#d7d8da]">
             Sign in to access your brain bank research assistant
           </p>
         </div>
 
         {/* Login form */}
-        <div className="p-8 rounded-2xl border border-border bg-card shadow-xl">
+        <div className="p-8 rounded-2xl border border-[#27282a] bg-card">
           {/* Error message */}
           {authError && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-sm text-destructive">
@@ -76,19 +76,19 @@ function LoginForm() {
 
           <form onSubmit={handleCredentialsLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Email</label>
+              <label className="block text-sm font-medium mb-1.5 text-white">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@institution.edu"
-                className="w-full px-4 py-3 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-4 py-3 rounded-xl border border-[#27282a] bg-[#343b50] text-white placeholder:text-[#969598] focus:outline-none focus:ring-2 focus:ring-[#383b4b]"
                 required
                 disabled={isLoading}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">
+              <label className="block text-sm font-medium mb-1.5 text-white">
                 Password
               </label>
               <input
@@ -96,7 +96,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full px-4 py-3 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-4 py-3 rounded-xl border border-[#27282a] bg-[#343b50] text-white placeholder:text-[#969598] focus:outline-none focus:ring-2 focus:ring-[#383b4b]"
                 required
                 disabled={isLoading}
               />
@@ -104,12 +104,12 @@ function LoginForm() {
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2">
-                <input type="checkbox" className="rounded border-input" />
-                <span className="text-muted-foreground">Remember me</span>
+                <input type="checkbox" className="rounded border-[#27282a] bg-[#343b50]" />
+                <span className="text-[#d7d8da]">Remember me</span>
               </label>
               <Link
                 href="/forgot-password"
-                className="text-primary hover:underline"
+                className="text-white hover:underline"
               >
                 Forgot password?
               </Link>
@@ -118,7 +118,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 bg-white text-[#1c2031] rounded-xl font-semibold hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
@@ -132,21 +132,21 @@ function LoginForm() {
           </form>
 
           {/* Demo credentials hint */}
-          <div className="mt-4 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+          <div className="mt-4 p-3 rounded-lg bg-[#383b4b] text-xs text-[#d7d8da]">
             <strong>Demo:</strong> Use{" "}
-            <code className="px-1 py-0.5 rounded bg-muted">
+            <code className="px-1 py-0.5 rounded bg-[#27282a]">
               demo@axon.research
             </code>{" "}
-            / <code className="px-1 py-0.5 rounded bg-muted">demo123</code>
+            / <code className="px-1 py-0.5 rounded bg-[#27282a]">demo123</code>
           </div>
 
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
+              <div className="w-full border-t border-[#27282a]" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
+              <span className="bg-card px-2 text-[#969598]">
                 Or continue with
               </span>
             </div>
@@ -157,7 +157,7 @@ function LoginForm() {
             <button
               onClick={() => handleOAuthLogin("google")}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 py-3 border border-input rounded-xl font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 py-3 border border-[#27282a] rounded-xl font-medium text-white hover:bg-[#383b4b] transition-colors disabled:opacity-50"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path
@@ -183,7 +183,7 @@ function LoginForm() {
             <button
               onClick={() => handleOAuthLogin("github")}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 py-3 border border-input rounded-xl font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 py-3 border border-[#27282a] rounded-xl font-medium text-white hover:bg-[#383b4b] transition-colors disabled:opacity-50"
             >
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
@@ -194,9 +194,9 @@ function LoginForm() {
         </div>
 
         {/* Sign up link */}
-        <p className="text-center mt-6 text-muted-foreground">
+        <p className="text-center mt-6 text-[#d7d8da]">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-primary hover:underline">
+          <Link href="/register" className="text-white hover:underline">
             Sign up
           </Link>
         </p>
@@ -207,10 +207,10 @@ function LoginForm() {
 
 function LoginLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-brand-950/10 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md text-center">
-        <Brain className="h-10 w-10 text-brand-500 mx-auto mb-4 animate-pulse" />
-        <p className="text-muted-foreground">Loading...</p>
+        <Brain className="h-10 w-10 text-white mx-auto mb-4 animate-pulse" />
+        <p className="text-[#d7d8da]">Loading...</p>
       </div>
     </div>
   );
