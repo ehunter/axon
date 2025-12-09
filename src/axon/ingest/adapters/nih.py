@@ -29,8 +29,8 @@ INDEPENDENT_BANKS = {
     "Mt. Sinai",
 }
 
-# RIN placeholder values that mean "not reported"
-RIN_PLACEHOLDERS = {"99.99", "99.99, 99.99", "No Test Results Reported", ""}
+# RIN placeholder values that mean "not reported" or "not applicable" (formalin fixed)
+RIN_INVALID_VALUES = {"99.99", "0.0", "0", "No Test Results Reported", ""}
 
 # Neuropathology score columns
 NEUROPATH_SCORE_COLUMNS = [
@@ -113,16 +113,45 @@ class NIHAdapter:
             return f"NIH {repo}"
 
     def parse_rin(self, value: str) -> Decimal | None:
-        """Parse RIN score, handling placeholder values."""
-        if not value or value.strip() in RIN_PLACEHOLDERS:
+        """Parse RIN score, handling placeholder values and comma-separated formats.
+        
+        RIN format notes:
+        - Single value: "7.4" - use directly
+        - Two values: "7.4, 0.0" - Left hemisphere, Right hemisphere
+          - 99.99 = not measured
+          - 0.0 = formalin fixed (no RIN applicable)
+        - When both hemispheres are frozen but only one RIN reported, it applies to both
+        """
+        if not value or not value.strip():
             return None
         
-        # Handle "99.99, 99.99" format
-        if "99.99" in value:
+        value = value.strip()
+        
+        # Handle comma-separated values (Left RIN, Right RIN)
+        if "," in value:
+            parts = [p.strip() for p in value.split(",")]
+            # Try each value, take the first valid one
+            for part in parts:
+                if part and part not in RIN_INVALID_VALUES:
+                    try:
+                        rin = Decimal(part)
+                        # Additional sanity check: RIN should be between 1 and 10
+                        if Decimal("1") <= rin <= Decimal("10"):
+                            return rin
+                    except InvalidOperation:
+                        continue
+            return None
+        
+        # Single value
+        if value in RIN_INVALID_VALUES:
             return None
         
         try:
-            return Decimal(value.strip())
+            rin = Decimal(value)
+            # Sanity check: RIN should be between 1 and 10
+            if Decimal("1") <= rin <= Decimal("10"):
+                return rin
+            return None
         except InvalidOperation:
             return None
 
