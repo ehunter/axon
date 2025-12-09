@@ -12,28 +12,25 @@ export default function Home() {
       <Sidebar />
       
       {/* Main content */}
-      <div className="flex-1 p-4 pr-4 pt-4 pb-0">
-        <div className="main-container h-full flex flex-col items-center justify-center">
-          {/* Centered content area */}
-          <div className="flex flex-col items-center w-full max-w-[700px] space-y-6">
-            {/* Greeting */}
-            <h1 className="text-display text-surface-foreground animate-fade-in text-center">
-              What can I help you with?
-            </h1>
-            
-            {/* Chat input */}
-            <div className="w-full animate-fade-in-up">
-              <ChatInputHome />
-            </div>
-            
-            {/* Category pills */}
-            <div className="flex flex-wrap justify-center gap-2 animate-fade-in-up">
-              <CategoryPill icon={<Dna className="h-4 w-4" />} label="Find Samples" />
-              <CategoryPill icon={<HelpCircle className="h-4 w-4" />} label="Learn" />
-              <CategoryPill icon={<Sparkles className="h-4 w-4" />} label="Explore" />
-              <CategoryPill icon={<Briefcase className="h-4 w-4" />} label="My Cohorts" />
-              <CategoryPill icon={<Lightbulb className="h-4 w-4" />} label="Suggestions" />
-            </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center w-full max-w-[700px] space-y-6 -mt-16">
+          {/* Greeting */}
+          <h1 className="text-display text-surface-foreground animate-fade-in text-center">
+            What can I help you with?
+          </h1>
+          
+          {/* Chat input */}
+          <div className="w-full animate-fade-in-up">
+            <ChatInputHome />
+          </div>
+          
+          {/* Category pills */}
+          <div className="flex flex-wrap justify-center gap-2 animate-fade-in-up">
+            <CategoryPill icon={<Dna className="h-4 w-4" />} label="Find Samples" />
+            <CategoryPill icon={<HelpCircle className="h-4 w-4" />} label="Learn" />
+            <CategoryPill icon={<Sparkles className="h-4 w-4" />} label="Explore" />
+            <CategoryPill icon={<Briefcase className="h-4 w-4" />} label="My Cohorts" />
+            <CategoryPill icon={<Lightbulb className="h-4 w-4" />} label="Suggestions" />
           </div>
         </div>
       </div>
