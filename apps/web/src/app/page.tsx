@@ -75,7 +75,7 @@ function ChatInputHome() {
   };
 
   return (
-    <div className="w-full bg-input rounded-[20px] px-5 py-4 h-[120px] border border-transparent hover:border-border focus-within:border-border transition-colors">
+    <div className="w-full bg-input rounded-[20px] px-5 py-4 h-[120px] border border-transparent hover:border-muted-foreground/30 focus-within:border-muted-foreground/30 transition-colors">
       <div className="flex flex-col justify-between h-full">
         {/* Text input */}
         <textarea
