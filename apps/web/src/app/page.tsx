@@ -68,7 +68,7 @@ function SuggestionCard({
       </div>
       <div className="space-y-1">
         <h3 className="text-base font-medium text-card-foreground">{title}</h3>
-        <p className="text-sm text-muted-foreground leading-5">{description}</p>
+        <p className="text-base text-muted-foreground leading-6">{description}</p>
       </div>
     </Link>
   );
