@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Brain,
-  MessageCircle,
   BookOpen,
   TableCellsSplit,
   Folder,
@@ -156,13 +155,12 @@ export function Sidebar() {
                     key={conversation.id}
                     href={`/chat?id=${conversation.id}`}
                     className={cn(
-                      "flex items-center gap-2 h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
+                      "flex items-center h-10 px-3 py-2 rounded-md text-base w-full text-left transition-colors",
                       isConversationActive(conversation.id)
                         ? "bg-sidebar-primary text-sidebar-primary-foreground"
                         : "text-sidebar-foreground hover:bg-sidebar-accent"
                     )}
                   >
-                    <MessageCircle className="h-4 w-4 shrink-0 opacity-50" />
                     <span className="truncate">
                       {conversation.title || "Untitled Chat"}
                     </span>
