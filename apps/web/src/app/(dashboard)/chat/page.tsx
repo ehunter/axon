@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import { ChatMessage, ChatInput, ChatHeader } from "@/components/chat";
 import { useChatStream } from "@/hooks/use-chat-stream";
 
-export default function ChatPage() {
+function ChatPageContent() {
   const {
     messages,
     isLoading,
@@ -15,6 +16,21 @@ export default function ChatPage() {
   } = useChatStream();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialMessageSent = useRef(false);
+
+  // Handle initial message from URL query param
+  useEffect(() => {
+    const initialMessage = searchParams.get("message");
+    if (initialMessage && !initialMessageSent.current && messages.length === 0) {
+      initialMessageSent.current = true;
+      // Clear the URL param
+      router.replace("/chat", { scroll: false });
+      // Send the message
+      sendMessage(initialMessage);
+    }
+  }, [searchParams, messages.length, sendMessage, router]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -87,6 +103,26 @@ export default function ChatPage() {
               recommendations
             </p>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<ChatPageLoading />}>
+      <ChatPageContent />
+    </Suspense>
+  );
+}
+
+function ChatPageLoading() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-center h-full">
+          <p className="text-muted-foreground animate-pulse">Loading...</p>
         </div>
       </div>
     </div>
