@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Brain } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChatMessage, ChatInput, ChatHeader } from "@/components/chat";
 
 interface Message {
   id: string;
@@ -10,45 +9,53 @@ interface Message {
   content: string;
 }
 
+// Mock initial messages for demo
+const initialMessages: Message[] = [
+  {
+    id: "1",
+    role: "user",
+    content: "How many samples do you have?",
+  },
+  {
+    id: "2",
+    role: "assistant",
+    content: "The database contains 17,870 brain tissue samples.",
+  },
+  {
+    id: "3",
+    role: "user",
+    content:
+      "how many of those have a clinical and neuropathological diagnosis of alzheimer's disease?",
+  },
+  {
+    id: "4",
+    role: "assistant",
+    content: `The database contains 1,761 samples with an Alzheimer's disease diagnosis:
+
+• 957 samples: Alzheimer's disease, unspecified
+• 700 samples: Alzheimer's disease with late onset
+• 104 samples: Alzheimer's disease with early onset`,
+  },
+];
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Hello! I'm Axon, your brain bank research assistant. I can help you find brain tissue samples for your research.\n\nTell me about your study - what condition are you researching, and what kind of samples do you need?",
-    },
-  ]);
-  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-    }
-  }, [input]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
+  const handleSend = async (content: string) => {
+    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim(),
+      content,
     };
-
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
     setIsLoading(true);
 
     // TODO: Implement actual API call
@@ -58,128 +65,55 @@ export default function ChatPage() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "I understand you're looking for samples. Let me help you find the right ones.\n\n*This is a placeholder response. The chat API integration will be implemented in the next phase.*",
+          "I understand your question. Let me search the database for relevant information.\n\n*This is a placeholder response. The chat API integration will be implemented in the next phase.*",
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setIsLoading(false);
     }, 1500);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
-        <div className="max-w-3xl mx-auto space-y-6">
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
+      {/* Main container with rounded top corners */}
+      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+        {/* Header */}
+        <ChatHeader
+          title="Sample Inventory Count"
+          onDropdownClick={() => {
+            // TODO: Open conversation switcher
+          }}
+        />
 
-          {isLoading && (
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Brain className="h-5 w-5" />
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="text-base">Thinking...</span>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-border bg-card p-4">
-        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-4">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe your research needs..."
-                rows={1}
-                className="w-full resize-none rounded-xl border border-input bg-background px-4 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50"
-                disabled={isLoading}
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto px-10 scrollbar-thin">
+          <div className="max-w-[640px] mx-auto space-y-11 py-6">
+            {messages.map((message) => (
+              <ChatMessage
+                key={message.id}
+                role={message.role}
+                content={message.content}
               />
-            </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className={cn(
-                "flex-shrink-0 h-12 w-12 rounded-xl flex items-center justify-center transition-colors",
-                input.trim() && !isLoading
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-secondary text-muted-foreground cursor-not-allowed"
-              )}
-            >
-              {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-            </button>
+            ))}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="text-muted-foreground">Thinking...</div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
-          <p className="mt-2 text-base text-muted-foreground text-center">
-            Press Enter to send, Shift+Enter for new line
-          </p>
-        </form>
-      </div>
-    </div>
-  );
-}
+        </div>
 
-function MessageBubble({ message }: { message: Message }) {
-  const isUser = message.role === "user";
-
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-4",
-        isUser && "flex-row-reverse"
-      )}
-    >
-      {/* Avatar */}
-      <div
-        className={cn(
-          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary" : "bg-secondary"
-        )}
-      >
-        {isUser ? (
-          <span className="text-base font-medium text-primary-foreground">
-            You
-          </span>
-        ) : (
-          <Brain className="h-5 w-5" />
-        )}
-      </div>
-
-      {/* Message content */}
-      <div
-        className={cn(
-          "flex-1 rounded-2xl px-4 py-3 max-w-[80%]",
-          isUser
-            ? "bg-primary text-primary-foreground ml-auto"
-            : "bg-secondary text-secondary-foreground"
-        )}
-      >
-        <div className="prose prose-base dark:prose-invert max-w-none">
-          {message.content.split("\n").map((line, i) => (
-            <p key={i} className={cn("mb-2 last:mb-0", !line && "h-4")}>
-              {line}
+        {/* Footer with input */}
+        <div className="px-10 py-8">
+          <div className="max-w-[608px] mx-auto space-y-4">
+            <ChatInput onSend={handleSend} disabled={isLoading} />
+            <p className="text-base text-muted-foreground text-center">
+              Axon is in Beta and can make mistakes. Please check your tissue
+              recommendations
             </p>
-          ))}
+          </div>
         </div>
       </div>
     </div>
