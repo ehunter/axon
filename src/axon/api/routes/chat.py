@@ -34,14 +34,18 @@ class ChatResponse(BaseModel):
 async def stream_chat_response(
     agent: ToolBasedChatAgent,
     message: str,
-    conversation_id: str,
+    conversation_id: str | None,
 ) -> AsyncGenerator[str, None]:
     """Stream chat response as Server-Sent Events."""
     try:
-        # Send conversation_id first so frontend can track it
-        yield f"data: {json.dumps({'type': 'conversation_id', 'content': conversation_id})}\n\n"
+        # Track if we've sent conversation_id yet
+        sent_conversation_id = False
         
         async for event in agent.chat_stream(message):
+            # Send conversation_id on first event (agent creates/loads it before first event)
+            if not sent_conversation_id and agent._db_conversation_id:
+                yield f"data: {json.dumps({'type': 'conversation_id', 'content': agent._db_conversation_id})}\n\n"
+                sent_conversation_id = True
             # Format as SSE
             data = {
                 "type": event.type.value,
@@ -75,7 +79,7 @@ async def chat_stream(
     """
     settings = get_settings()
     
-    logger.info(f"Chat stream request - message: {request.message[:50]}..., conversation_id: {request.conversation_id}")
+    logger.info(f"Chat stream request - message: {request.message[:50]}..., conversation_id: {request.conversation_id} (type: {type(request.conversation_id).__name__})")
     
     if not settings.anthropic_api_key:
         raise HTTPException(
@@ -107,9 +111,9 @@ async def chat_stream(
             logger.warning(f"Could not load conversation {request.conversation_id}: {e}")
             # Continue with new conversation if load fails
     
-    # Get conversation ID (either loaded or newly created)
-    conversation_id = agent.conversation.id if agent.conversation else "unknown"
-    logger.info(f"Using conversation_id: {conversation_id}")
+    # Get conversation ID - use database ID if available, otherwise will be created during chat_stream
+    conversation_id = agent._db_conversation_id
+    logger.info(f"Starting chat - conversation_id: {conversation_id} (will be created if new)")
     
     return StreamingResponse(
         stream_chat_response(agent, request.message, conversation_id),
