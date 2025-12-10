@@ -454,3 +454,70 @@ class ConversationService:
                 "total": 0,
             }
 
+    async def get_selection_with_samples(self, conversation_id: str) -> list[dict]:
+        """Get full selection data with sample details for the data table.
+        
+        Joins ConversationSample with Sample to get full sample data.
+        
+        Args:
+            conversation_id: The conversation ID
+            
+        Returns:
+            List of dicts with sample selection data and full sample details
+        """
+        from axon.db.models import Sample
+        
+        try:
+            # First get the conversation samples
+            result = await self.db_session.execute(
+                select(ConversationSample).where(
+                    ConversationSample.conversation_id == conversation_id
+                )
+            )
+            conv_samples = result.scalars().all()
+            
+            if not conv_samples:
+                return []
+            
+            # Get full sample data for each
+            samples_data = []
+            for cs in conv_samples:
+                # Try to find the full sample record
+                sample_result = await self.db_session.execute(
+                    select(Sample).where(Sample.external_id == cs.sample_external_id)
+                )
+                sample = sample_result.scalar_one_or_none()
+                
+                sample_dict = {
+                    "id": cs.id,
+                    "sample_external_id": cs.sample_external_id,
+                    "sample_group": cs.sample_group,
+                    "diagnosis": cs.diagnosis,
+                    "age": cs.age,
+                    "sex": cs.sex,
+                    "source_bank": cs.source_bank,
+                    "added_at": cs.added_at.isoformat() if cs.added_at else None,
+                }
+                
+                # Add full sample data if available
+                if sample:
+                    sample_dict["sample_data"] = {
+                        "rin_score": float(sample.rin_score) if sample.rin_score else None,
+                        "postmortem_interval_hours": float(sample.postmortem_interval_hours) if sample.postmortem_interval_hours else None,
+                        "ph_level": float(sample.ph_level) if sample.ph_level else None,
+                        "primary_diagnosis": sample.primary_diagnosis,
+                        "donor_race": sample.donor_race,
+                        "brain_region": sample.brain_region,
+                        "tissue_type": sample.tissue_type,
+                        "raw_data": sample.raw_data or {},
+                    }
+                
+                samples_data.append(sample_dict)
+            
+            return samples_data
+            
+        except Exception as e:
+            logger.error(f"Error getting selection with samples: {e}")
+            await self.db_session.rollback()
+            return []
+
