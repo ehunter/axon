@@ -2,8 +2,8 @@
  * Horizontal Bar Chart with Custom Labels
  *
  * Displays categorical distribution as horizontal bars using Recharts/shadcn.
- * Labels inside bars, values flush right at fixed position.
- * Uses normalized data to ensure minimum bar width for labels.
+ * Layout: [Chart with labels inside bars] [Values column flush right]
+ * Uses flexbox to ensure values align to parent container edge.
  */
 
 "use client";
@@ -23,26 +23,6 @@ interface HorizontalBarChartProps {
   accentColor?: string;
 }
 
-// Custom label renderer for flush-right values
-const FlushRightValueLabel = (props: any) => {
-  const { y, height, value, viewBox } = props;
-  // Position at the right edge of the viewBox
-  const rightEdge = (viewBox?.x || 0) + (viewBox?.width || 200);
-  return (
-    <text
-      x={rightEdge + 8}
-      y={y + height / 2}
-      dy={5}
-      textAnchor="start"
-      fill="#b5bcd3"
-      fontSize={13}
-      fontWeight={600}
-    >
-      {value}
-    </text>
-  );
-};
-
 export function HorizontalBarChart({
   data,
   height = 160,
@@ -60,74 +40,85 @@ export function HorizontalBarChart({
   const rawData = data.slice(0, 5);
   const maxValue = Math.max(...rawData.map((d) => d.value));
 
-  // Normalize values to ensure minimum bar width (40% minimum)
-  // Formula: displayValue = minPercent + (value / maxValue) * (1 - minPercent)
-  const minPercent = 0.4;
+  // Use actual values for bar widths (no normalization)
   const chartData = rawData.map((item) => ({
     name: item.label,
-    displayValue: minPercent + (item.value / maxValue) * (1 - minPercent),
-    actualValue: item.value, // Keep original for label
+    value: item.value,
   }));
 
   const chartConfig: ChartConfig = {
-    displayValue: {
+    value: {
       label: "Count",
       color: accentColor,
     },
   };
 
+  // Calculate row height for value alignment
+  const rowCount = chartData.length;
+  const chartHeight = height - 8; // Account for top/bottom margin
+  const rowHeight = chartHeight / rowCount;
+
   return (
-    <ChartContainer config={chartConfig} className="w-full" style={{ height }}>
-      <BarChart
-        data={chartData}
-        layout="vertical"
-        margin={{ left: 0, right: 36, top: 4, bottom: 4 }}
-      >
-        <YAxis
-          dataKey="name"
-          type="category"
-          tickLine={false}
-          axisLine={false}
-          hide
-        />
-        <XAxis
-          type="number"
-          hide
-          domain={[0, 1]} // Normalized 0-1 scale
-        />
-        <ChartTooltip
-          cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
-          content={
-            <ChartTooltipContent
-              formatter={(value, name, item) => [item.payload.actualValue, "Count"]}
+    <div className="flex w-full gap-2" style={{ height }}>
+      {/* Chart area - bars with labels inside */}
+      <div className="flex-1 min-w-0">
+        <ChartContainer config={chartConfig} className="w-full h-full">
+          <BarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ left: 0, right: 0, top: 4, bottom: 4 }}
+          >
+            <YAxis
+              dataKey="name"
+              type="category"
+              tickLine={false}
+              axisLine={false}
+              hide
             />
-          }
-        />
-        <Bar
-          dataKey="displayValue"
-          radius={[0, 4, 4, 0]}
-          fill={accentColor}
-          barSize={28}
-        >
-          {/* Label inside the bar (left side) */}
-          <LabelList
-            dataKey="name"
-            position="insideLeft"
-            offset={12}
-            className="fill-[#e0e6ff]"
-            fontSize={13}
-            fontWeight={500}
-            formatter={(value: string) =>
-              value.length > 16 ? `${value.slice(0, 16)}…` : value
-            }
-          />
-          {/* Value flush right at fixed position */}
-          <LabelList
-            dataKey="actualValue"
-            content={<FlushRightValueLabel />}
-          />
-        </Bar>
-      </BarChart>
-    </ChartContainer>
+            <XAxis
+              type="number"
+              hide
+              domain={[0, maxValue]}
+            />
+            <ChartTooltip
+              cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+              content={<ChartTooltipContent />}
+            />
+            <Bar
+              dataKey="value"
+              radius={[0, 4, 4, 0]}
+              fill={accentColor}
+              barSize={28}
+            >
+              {/* Label inside the bar (left side) */}
+              <LabelList
+                dataKey="name"
+                position="insideLeft"
+                offset={12}
+                className="fill-[#e0e6ff]"
+                fontSize={13}
+                fontWeight={500}
+              />
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </div>
+
+      {/* Values column - flush right */}
+      <div
+        className="flex flex-col justify-around shrink-0 py-1"
+        style={{ width: 32 }}
+      >
+        {chartData.map((item, index) => (
+          <span
+            key={index}
+            className="text-[13px] font-semibold text-[#b5bcd3] text-right"
+            style={{ height: rowHeight, lineHeight: `${rowHeight}px` }}
+          >
+            {item.value}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
