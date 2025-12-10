@@ -1,23 +1,30 @@
 /**
  * Donut Chart
  * 
- * Displays binary categorical distribution as a donut/pie chart.
+ * Displays binary categorical distribution as a donut/pie chart using Recharts.
  * Used for Gender column (Male/Female).
  */
 
+"use client";
+
+import { Pie, PieChart, Cell, Label } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { DonutChartData } from "@/types/cohort";
 
 interface DonutChartProps {
   data: DonutChartData[];
   size?: number;
-  strokeWidth?: number;
   showLegend?: boolean;
 }
 
 export function DonutChart({
   data,
   size = 100,
-  strokeWidth = 16,
   showLegend = true,
 }: DonutChartProps) {
   if (data.length === 0) {
@@ -37,61 +44,47 @@ export function DonutChart({
     );
   }
 
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const center = size / 2;
-
-  // Calculate stroke dash for each segment
-  let cumulativePercent = 0;
-  const segments = data.map((item) => {
-    const percent = item.value / total;
-    const dashArray = `${percent * circumference} ${circumference}`;
-    const rotation = cumulativePercent * 360 - 90; // Start at top (-90deg)
-    cumulativePercent += percent;
-    
-    return {
-      ...item,
-      percent,
-      dashArray,
-      rotation,
+  // Build chart config from data
+  const chartConfig: ChartConfig = data.reduce((acc, item) => {
+    acc[item.label] = {
+      label: item.label,
+      color: item.color,
     };
-  });
+    return acc;
+  }, {} as ChartConfig);
+
+  const chartData = data.map((d) => ({
+    name: d.label,
+    value: d.value,
+    fill: d.color,
+  }));
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* SVG Donut */}
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Background circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="none"
-          stroke="hsl(var(--muted))"
-          strokeWidth={strokeWidth}
-        />
-        
-        {/* Data segments */}
-        {segments.map((segment, index) => (
-          <circle
-            key={segment.label}
-            cx={center}
-            cy={center}
-            r={radius}
-            fill="none"
-            stroke={segment.color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={segment.dashArray}
-            strokeDashoffset={0}
-            transform={`rotate(${segment.rotation} ${center} ${center})`}
-            className="transition-all duration-300"
+    <div className="flex flex-col items-center gap-2">
+      <ChartContainer config={chartConfig} className="aspect-square" style={{ height: size, width: size }}>
+        <PieChart>
+          <ChartTooltip
+            cursor={false}
+            content={<ChartTooltipContent hideLabel />}
           />
-        ))}
-      </svg>
+          <Pie
+            data={chartData}
+            dataKey="value"
+            nameKey="name"
+            innerRadius={size * 0.3}
+            outerRadius={size * 0.45}
+            strokeWidth={0}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ChartContainer>
 
       {/* Legend */}
       {showLegend && (
-        <div className="flex flex-col gap-1 w-full">
+        <div className="flex flex-col gap-0.5 w-full">
           {data.map((item) => (
             <div 
               key={item.label}
@@ -102,11 +95,11 @@ export function DonutChart({
                   className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-sm" style={{ color: item.color }}>
+                <span className="text-xs" style={{ color: item.color }}>
                   {item.label}
                 </span>
               </div>
-              <span className="text-sm font-medium text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground">
                 {item.value}
               </span>
             </div>
@@ -140,4 +133,3 @@ export function createDonutData(
     color: colorMap?.[label] || DONUT_COLORS[label as keyof typeof DONUT_COLORS] || "hsl(var(--muted-foreground))",
   }));
 }
-
