@@ -149,6 +149,7 @@ export function ScaleChart({
               style={{
                 left: `calc(${dot.position}% * 0.95 + 2.5%)`,
                 bottom: bottomOffset,
+                zIndex: isHovered ? 20 : 1,
               }}
               onMouseEnter={() => setHoveredIndex(dot.originalIndex)}
               onMouseLeave={() => setHoveredIndex(null)}
@@ -165,7 +166,7 @@ export function ScaleChart({
 
               {/* Tooltip */}
               <div
-                className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded bg-popover border border-border shadow-md text-xs whitespace-nowrap z-10 transition-opacity ${
+                className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded bg-popover border border-border shadow-md text-xs whitespace-nowrap z-50 transition-opacity ${
                   isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
                 }`}
               >
