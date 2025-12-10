@@ -103,6 +103,11 @@ function calculateColumnWidth(
       calculatedWidth = (maxLabelLength * CHAR_WIDTH) + MIN_BAR_SPACE + VALUE_COLUMN_WIDTH + LABEL_PADDING;
       break;
     
+    case "scale":
+      // Scale charts need horizontal space for the scale track
+      calculatedWidth = Math.max(200, minWidth);
+      break;
+    
     case "vertical-bar":
     case "donut":
       // These have fixed chart sizes, width based on header + padding
