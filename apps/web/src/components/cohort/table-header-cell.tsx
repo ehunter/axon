@@ -35,10 +35,12 @@ export function TableHeaderCell({
   samples,
   height = 284,
 }: TableHeaderCellProps) {
+  const width = column.width ?? 150;
+  
   return (
     <div
       className="flex flex-col gap-4 px-4 py-6"
-      style={{ width: column.width, height, minWidth: column.width, backgroundColor: "#212636" }}
+      style={{ width, height, minWidth: width, backgroundColor: "#212636" }}
     >
       {/* Column title */}
       <h3 className="text-xl font-normal text-foreground">

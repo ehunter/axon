@@ -103,7 +103,9 @@ export interface ColumnDefinition {
   cellType: CellType;
   
   // Display options
-  width: number; // Column width in pixels
+  width?: number; // Override width (otherwise calculated dynamically)
+  minWidth?: number; // Minimum width constraint
+  maxWidth?: number; // Maximum width constraint
   sticky?: boolean; // Sticky column (first column)
   
   // Data type hints for visualization
@@ -127,7 +129,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "externalId",
     visualization: "none",
     cellType: "text",
-    width: 200,
+    minWidth: 140,
+    maxWidth: 220,
     sticky: true,
     dataType: "text",
   },
@@ -137,7 +140,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "group",
     visualization: "horizontal-bar",
     cellType: "badge",
-    width: 180,
+    minWidth: 160,
+    maxWidth: 220,
     dataType: "categorical",
     categories: ["case", "control"],
     colorMap: {
@@ -151,7 +155,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "diagnoses",
     visualization: "horizontal-bar",
     cellType: "badges",
-    width: 280,
+    minWidth: 200,
+    maxWidth: 320,
     dataType: "categorical",
   },
   {
@@ -160,7 +165,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "braakStage",
     visualization: "vertical-bar",
     cellType: "text",
-    width: 150,
+    minWidth: 140,
+    maxWidth: 180,
     dataType: "ordinal",
     categories: ["0", "I", "II", "III", "IV", "V", "VI"],
   },
@@ -170,7 +176,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "sex",
     visualization: "donut",
     cellType: "text",
-    width: 180,
+    minWidth: 140,
+    maxWidth: 180,
     dataType: "categorical",
     categories: ["Male", "Female"],
     colorMap: {
@@ -184,7 +191,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "age",
     visualization: "vertical-bar",
     cellType: "numeric",
-    width: 150,
+    minWidth: 120,
+    maxWidth: 160,
     dataType: "numeric",
     format: (v) => v != null ? `${v}` : "—",
   },
@@ -194,7 +202,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "pmi",
     visualization: "vertical-bar",
     cellType: "numeric",
-    width: 150,
+    minWidth: 120,
+    maxWidth: 160,
     dataType: "numeric",
     format: (v) => v != null ? `${Number(v).toFixed(1)}h` : "—",
   },
@@ -204,7 +213,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "rin",
     visualization: "vertical-bar",
     cellType: "numeric",
-    width: 150,
+    minWidth: 120,
+    maxWidth: 160,
     dataType: "numeric",
     format: (v) => v != null ? `${Number(v).toFixed(1)}` : "—",
   },
@@ -214,7 +224,8 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     field: "sourceBank",
     visualization: "horizontal-bar",
     cellType: "text",
-    width: 180,
+    minWidth: 180,
+    maxWidth: 280,
     dataType: "categorical",
   },
 ];
