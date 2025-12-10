@@ -6,10 +6,10 @@
 
 interface TextCellProps {
   value: string | null | undefined;
-  width: number;
+  width?: number;
 }
 
-export function TextCell({ value, width }: TextCellProps) {
+export function TextCell({ value, width = 150 }: TextCellProps) {
   return (
     <div
       className="flex items-center h-10 px-3 bg-secondary"

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface BadgeCellProps {
   value: string | string[] | null | undefined;
-  width: number;
+  width?: number;
   colorMap?: Record<string, string>;
 }
 
@@ -30,7 +30,7 @@ function getBadgeVariant(value: string): string {
   return BADGE_VARIANTS[lowerValue] || BADGE_VARIANTS.default;
 }
 
-export function BadgeCell({ value, width, colorMap }: BadgeCellProps) {
+export function BadgeCell({ value, width = 150, colorMap }: BadgeCellProps) {
   if (value == null || (Array.isArray(value) && value.length === 0)) {
     return (
       <div

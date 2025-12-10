@@ -18,12 +18,28 @@ import {
 } from "@/types/cohort";
 
 // ============================================================================
+// Constants for Width Calculation
+// ============================================================================
+
+/** Approximate character width at 13px font size */
+const CHAR_WIDTH = 8;
+
+/** Padding for labels and spacing */
+const LABEL_PADDING = 24;
+
+/** Space reserved for value column in horizontal bar charts */
+const VALUE_COLUMN_WIDTH = 40;
+
+/** Space for the bar itself (minimum) */
+const MIN_BAR_SPACE = 60;
+
+// ============================================================================
 // Column Generation
 // ============================================================================
 
 /**
- * Generate column definitions from sample data
- * Uses default columns for known fields, can be extended for custom fields
+ * Generate column definitions from sample data with dynamic widths
+ * Uses default columns for known fields, calculates widths based on content
  */
 export function generateColumns(samples: CohortSample[]): ColumnDefinition[] {
   // Start with default columns, filter to those with data
@@ -36,7 +52,74 @@ export function generateColumns(samples: CohortSample[]): ColumnDefinition[] {
     });
   });
 
-  return columns;
+  // Calculate dynamic widths for each column
+  return columns.map((col) => ({
+    ...col,
+    width: calculateColumnWidth(col, samples),
+  }));
+}
+
+/**
+ * Calculate optimal column width based on data content
+ */
+function calculateColumnWidth(
+  column: ColumnDefinition,
+  samples: CohortSample[]
+): number {
+  // If explicit width is set, use it
+  if (column.width) {
+    return column.width;
+  }
+
+  const minWidth = column.minWidth ?? 120;
+  const maxWidth = column.maxWidth ?? 300;
+
+  // Get all values for this field
+  const values = samples
+    .map((s) => getFieldValue(s, column.field))
+    .filter((v) => v != null && v !== "");
+
+  // Find the longest value
+  let maxLabelLength = column.label.length; // Start with header label
+  
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      // For arrays, consider each item
+      for (const item of value) {
+        maxLabelLength = Math.max(maxLabelLength, String(item).length);
+      }
+    } else {
+      maxLabelLength = Math.max(maxLabelLength, String(value).length);
+    }
+  }
+
+  // Calculate width based on visualization type
+  let calculatedWidth: number;
+
+  switch (column.visualization) {
+    case "horizontal-bar":
+      // Label inside bar + bar space + value column + padding
+      calculatedWidth = (maxLabelLength * CHAR_WIDTH) + MIN_BAR_SPACE + VALUE_COLUMN_WIDTH + LABEL_PADDING;
+      break;
+    
+    case "vertical-bar":
+    case "donut":
+      // These have fixed chart sizes, width based on header + padding
+      calculatedWidth = Math.max(
+        (column.label.length * CHAR_WIDTH) + LABEL_PADDING,
+        140 // Minimum for charts
+      );
+      break;
+    
+    case "none":
+    default:
+      // Text columns: based on content width
+      calculatedWidth = (maxLabelLength * CHAR_WIDTH) + LABEL_PADDING;
+      break;
+  }
+
+  // Apply constraints
+  return Math.max(minWidth, Math.min(maxWidth, calculatedWidth));
 }
 
 /**

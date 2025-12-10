@@ -6,12 +6,12 @@
 
 interface NumericCellProps {
   value: number | string | null | undefined;
-  width: number;
+  width?: number;
   format?: (value: unknown) => string;
   suffix?: string;
 }
 
-export function NumericCell({ value, width, format, suffix }: NumericCellProps) {
+export function NumericCell({ value, width = 150, format, suffix }: NumericCellProps) {
   let displayValue = "—";
 
   if (value != null && value !== "") {
