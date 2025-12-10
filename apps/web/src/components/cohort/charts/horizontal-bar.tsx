@@ -17,6 +17,26 @@ import {
 } from "@/components/ui/chart";
 import { BarChartData } from "@/types/cohort";
 
+// Custom label component for flush-right aligned values
+const RightAlignedLabel = (props: any) => {
+  const { y, height, value, viewBox } = props;
+  // Position at the right edge of the chart area
+  const chartWidth = viewBox?.width || 200;
+  return (
+    <text
+      x={chartWidth + 8}
+      y={y + height / 2}
+      dy={4}
+      textAnchor="end"
+      fill="#b5bcd3"
+      fontSize={13}
+      fontWeight={600}
+    >
+      {value}
+    </text>
+  );
+};
+
 interface HorizontalBarChartProps {
   data: BarChartData[];
   height?: number;
@@ -93,14 +113,10 @@ export function HorizontalBarChart({
               value.length > 14 ? `${value.slice(0, 14)}…` : value
             }
           />
-          {/* Value on the right side */}
+          {/* Value flush right aligned */}
           <LabelList
             dataKey="value"
-            position="right"
-            offset={8}
-            className="fill-[#b5bcd3]"
-            fontSize={13}
-            fontWeight={600}
+            content={<RightAlignedLabel />}
           />
         </Bar>
       </BarChart>
