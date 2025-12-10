@@ -1,20 +1,13 @@
 /**
  * Horizontal Bar Chart with Custom Labels
- * 
- * Displays categorical distribution as horizontal bars using Recharts.
- * Labels are positioned on the bar, values on the right.
+ *
+ * Displays categorical distribution as horizontal bars.
+ * Layout: [Label] [Bar] [Value] - prevents overlap issues.
  * Used for Sample Types, Clinical Diagnosis, Source columns.
  */
 
 "use client";
 
-import { Bar, BarChart, XAxis, YAxis, LabelList } from "recharts";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { BarChartData } from "@/types/cohort";
 
 interface HorizontalBarChartProps {
@@ -37,73 +30,40 @@ export function HorizontalBarChart({
   }
 
   // Take top 5 categories
-  const chartData = data.slice(0, 5).map((item) => ({
-    name: item.label,
-    value: item.value,
-  }));
-
-  const chartConfig: ChartConfig = {
-    value: {
-      label: "Count",
-      color: accentColor,
-    },
-  };
-
-  // Calculate max value for proper scaling
+  const chartData = data.slice(0, 5);
   const maxValue = Math.max(...chartData.map((d) => d.value));
 
   return (
-    <ChartContainer config={chartConfig} className="w-full" style={{ height }}>
-      <BarChart
-        data={chartData}
-        layout="vertical"
-        margin={{ left: 8, right: 40, top: 4, bottom: 4 }}
-      >
-        <YAxis
-          dataKey="name"
-          type="category"
-          tickLine={false}
-          axisLine={false}
-          hide
-        />
-        <XAxis 
-          type="number" 
-          hide 
-          domain={[0, maxValue * 1.2]} // Add space for labels
-        />
-        <ChartTooltip
-          cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
-          content={<ChartTooltipContent />}
-        />
-        <Bar
-          dataKey="value"
-          radius={[0, 4, 4, 0]}
-          fill={accentColor}
-          barSize={28}
-        >
-          {/* Label on the bar (left side) - light color for dark background */}
-          <LabelList
-            dataKey="name"
-            position="insideLeft"
-            offset={8}
-            className="fill-[#e0e6ff]"
-            fontSize={13}
-            fontWeight={500}
-            formatter={(value: string) => 
-              value.length > 14 ? `${value.slice(0, 14)}…` : value
-            }
-          />
-          {/* Value on the right side */}
-          <LabelList
-            dataKey="value"
-            position="right"
-            offset={8}
-            className="fill-[#b5bcd3]"
-            fontSize={13}
-            fontWeight={600}
-          />
-        </Bar>
-      </BarChart>
-    </ChartContainer>
+    <div className="flex flex-col justify-center gap-1.5 w-full" style={{ height }}>
+      {chartData.map((item, index) => (
+        <div key={index} className="flex items-center gap-2 h-7">
+          {/* Label - fixed width, truncated */}
+          <span
+            className="text-[13px] font-medium text-[#e0e6ff] truncate flex-shrink-0"
+            style={{ width: 90 }}
+            title={item.label}
+          >
+            {item.label}
+          </span>
+
+          {/* Bar - scales proportionally */}
+          <div className="flex-1 h-full flex items-center">
+            <div
+              className="h-5 rounded-r"
+              style={{
+                width: `${(item.value / maxValue) * 100}%`,
+                minWidth: 4,
+                backgroundColor: accentColor,
+              }}
+            />
+          </div>
+
+          {/* Value - fixed width, right aligned */}
+          <span className="text-[13px] font-semibold text-[#b5bcd3] w-6 text-right flex-shrink-0">
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
