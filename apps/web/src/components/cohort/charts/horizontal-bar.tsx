@@ -79,7 +79,6 @@ export function HorizontalBarChart({
           dataKey="value"
           radius={[0, 4, 4, 0]}
           fill={accentColor}
-          background={{ fill: "hsl(var(--muted))", radius: 4 }}
           barSize={28}
         >
           {/* Label on the bar (left side) - light color for dark background */}
