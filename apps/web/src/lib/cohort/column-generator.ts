@@ -223,11 +223,15 @@ export function prepareBarChartData(
 
 /**
  * Prepare histogram data from numeric values
+ * 
+ * Uses smart binning:
+ * - For sparse data (< 15 unique values): each value gets its own bar
+ * - For dense data: uses histogram binning with empty bins filtered out
  */
 export function prepareHistogramData(
   samples: CohortSample[],
   field: string,
-  binCount: number = 10
+  maxBinCount: number = 10
 ): HistogramData | null {
   const values = samples
     .map((s) => getFieldValue(s, field))
@@ -235,33 +239,62 @@ export function prepareHistogramData(
 
   if (values.length === 0) return null;
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const binWidth = (max - min) / binCount;
-
-  // Create bins
-  const bins: number[] = [];
-  const counts: number[] = new Array(binCount).fill(0);
-
-  for (let i = 0; i <= binCount; i++) {
-    bins.push(min + i * binWidth);
-  }
-
-  // Count values in each bin
-  for (const value of values) {
-    const binIndex = Math.min(
-      Math.floor((value - min) / binWidth),
-      binCount - 1
-    );
-    counts[binIndex]++;
-  }
-
   // Calculate median
   const sorted = [...values].sort((a, b) => a - b);
   const median =
     sorted.length % 2 === 0
       ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
       : sorted[Math.floor(sorted.length / 2)];
+
+  // Get unique values
+  const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+
+  // For sparse data (< 15 unique values), use value-based bars (no binning)
+  if (uniqueValues.length < 15) {
+    const counts = uniqueValues.map(
+      (v) => values.filter((x) => x === v).length
+    );
+    return {
+      bins: uniqueValues,
+      counts,
+      median,
+    };
+  }
+
+  // For dense data, use histogram binning
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  
+  // Adaptive bin count based on data
+  const binCount = Math.min(maxBinCount, Math.ceil(uniqueValues.length / 2));
+  const binWidth = (max - min) / binCount;
+
+  // Create bins and count values
+  const allBins: number[] = [];
+  const allCounts: number[] = new Array(binCount).fill(0);
+
+  for (let i = 0; i < binCount; i++) {
+    allBins.push(min + i * binWidth);
+  }
+
+  for (const value of values) {
+    const binIndex = Math.min(
+      Math.floor((value - min) / binWidth),
+      binCount - 1
+    );
+    allCounts[binIndex]++;
+  }
+
+  // Filter out empty bins
+  const bins: number[] = [];
+  const counts: number[] = [];
+  
+  for (let i = 0; i < allBins.length; i++) {
+    if (allCounts[i] > 0) {
+      bins.push(allBins[i]);
+      counts.push(allCounts[i]);
+    }
+  }
 
   return { bins, counts, median };
 }
