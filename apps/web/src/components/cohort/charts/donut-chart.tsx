@@ -16,16 +16,20 @@ import {
 } from "@/components/ui/chart";
 import { DonutChartData } from "@/types/cohort";
 
+const DIM_OPACITY = 0.4;
+
 interface DonutChartProps {
   data: DonutChartData[];
   size?: number;
   showLegend?: boolean;
+  highlightedCategory?: string | null;
 }
 
 export function DonutChart({
   data,
   size = 100,
   showLegend = true,
+  highlightedCategory,
 }: DonutChartProps) {
   if (data.length === 0) {
     return (
@@ -75,9 +79,22 @@ export function DonutChart({
             outerRadius={size * 0.45}
             strokeWidth={0}
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} />
-            ))}
+            {chartData.map((entry, index) => {
+              const isHighlighted = highlightedCategory === entry.name;
+              const isDimmed = highlightedCategory != null && !isHighlighted;
+              return (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.fill}
+                  opacity={isDimmed ? DIM_OPACITY : 1}
+                  style={{
+                    transform: isHighlighted ? "scale(1.05)" : "scale(1)",
+                    transformOrigin: "center",
+                    transition: "transform 0.2s, opacity 0.2s",
+                  }}
+                />
+              );
+            })}
           </Pie>
         </PieChart>
       </ChartContainer>
@@ -85,25 +102,33 @@ export function DonutChart({
       {/* Legend */}
       {showLegend && (
         <div className="flex flex-col gap-0.5 w-full">
-          {data.map((item) => (
-            <div 
-              key={item.label}
-              className="flex items-center justify-between px-2 py-0.5"
-            >
-              <div className="flex items-center gap-2">
-                <div 
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-xs" style={{ color: item.color }}>
-                  {item.label}
+          {data.map((item) => {
+            const isHighlighted = highlightedCategory === item.label;
+            const isDimmed = highlightedCategory != null && !isHighlighted;
+            return (
+              <div 
+                key={item.label}
+                className="flex items-center justify-between px-2 py-0.5 transition-opacity"
+                style={{ opacity: isDimmed ? DIM_OPACITY : 1 }}
+              >
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span
+                    className="text-xs"
+                    style={{ color: isHighlighted ? "hsl(var(--foreground))" : item.color }}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+                <span className={`text-xs font-medium ${isHighlighted ? "text-foreground" : "text-muted-foreground"}`}>
+                  {item.value}
                 </span>
               </div>
-              <span className="text-xs font-medium text-muted-foreground">
-                {item.value}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

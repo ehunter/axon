@@ -17,12 +17,16 @@ import {
 } from "@/components/ui/chart";
 import { HistogramData, BarChartData } from "@/types/cohort";
 
+const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
+const DIM_OPACITY = 0.4;
+
 interface VerticalBarChartProps {
   data: HistogramData | BarChartData[];
   height?: number;
   showMedian?: boolean;
   medianLabel?: string;
   accentColor?: string;
+  highlightedValue?: number | null; // For numeric histograms
 }
 
 export function VerticalBarChart({
@@ -31,6 +35,7 @@ export function VerticalBarChart({
   showMedian = true,
   medianLabel = "Median",
   accentColor = "hsl(186, 53%, 32%)", // Teal
+  highlightedValue,
 }: VerticalBarChartProps) {
   // Normalize data to array format
   const isHistogram = "bins" in data;
@@ -51,13 +56,34 @@ export function VerticalBarChart({
     ? data.counts.map((count, i) => ({
         name: data.bins[i].toFixed(precision),
         value: count,
+        binValue: data.bins[i],
       }))
     : data.map((d) => ({
         name: d.label,
         value: d.value,
+        binValue: null,
       }));
 
   const median = isHistogram ? data.median : undefined;
+
+  // Find which bin the highlighted value belongs to
+  const getHighlightedBinIndex = (): number | null => {
+    if (highlightedValue == null || !isHistogram) return null;
+    const bins = data.bins;
+    for (let i = 0; i < bins.length; i++) {
+      const nextBin = bins[i + 1];
+      if (nextBin == null) {
+        // Last bin - check if value matches
+        if (Math.abs(highlightedValue - bins[i]) < 0.01) return i;
+      } else if (highlightedValue >= bins[i] && highlightedValue < nextBin) {
+        return i;
+      } else if (Math.abs(highlightedValue - bins[i]) < 0.01) {
+        return i;
+      }
+    }
+    return null;
+  };
+  const highlightedBinIndex = getHighlightedBinIndex();
 
   if (chartData.length === 0 || chartData.every((d) => d.value === 0)) {
     return (
@@ -96,7 +122,19 @@ export function VerticalBarChart({
             dataKey="value"
             radius={[4, 4, 0, 0]}
             fill={accentColor}
-          />
+          >
+            {chartData.map((entry, index) => {
+              const isHighlighted = highlightedBinIndex === index;
+              const isDimmed = highlightedBinIndex != null && !isHighlighted;
+              return (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={isHighlighted ? HIGHLIGHT_COLOR : accentColor}
+                  opacity={isDimmed ? DIM_OPACITY : 1}
+                />
+              );
+            })}
+          </Bar>
         </BarChart>
       </ChartContainer>
 
@@ -128,6 +166,7 @@ interface OrdinalBarChartProps {
   height?: number;
   medianValue?: string;
   accentColor?: string;
+  highlightedCategory?: string | null;
 }
 
 export function OrdinalBarChart({
@@ -135,6 +174,7 @@ export function OrdinalBarChart({
   height = 150,
   medianValue,
   accentColor = "hsl(186, 53%, 32%)", // Teal
+  highlightedCategory,
 }: OrdinalBarChartProps) {
   if (data.length === 0 || data.every((d) => d.value === 0)) {
     return (
@@ -178,7 +218,19 @@ export function OrdinalBarChart({
             dataKey="value"
             radius={[4, 4, 0, 0]}
             fill={accentColor}
-          />
+          >
+            {chartData.map((entry, index) => {
+              const isHighlighted = highlightedCategory === entry.name;
+              const isDimmed = highlightedCategory != null && !isHighlighted;
+              return (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={isHighlighted ? HIGHLIGHT_COLOR : accentColor}
+                  opacity={isDimmed ? DIM_OPACITY : 1}
+                />
+              );
+            })}
+          </Bar>
         </BarChart>
       </ChartContainer>
 

@@ -82,11 +82,27 @@ function VisualizationContent({
 }) {
   const { visualization, field, dataType, categories, colorMap, scaleMin, scaleMax } = column;
 
+  // Get the hovered sample's value for this field (for category highlighting)
+  const hoveredValue = hoveredSampleIndex != null
+    ? getFieldValue(samples[hoveredSampleIndex], field)
+    : null;
+
   switch (visualization) {
     case "horizontal-bar": {
       const distribution = calculateCategoryDistribution(samples, field);
       const chartData = prepareBarChartData(distribution, colorMap);
-      return <HorizontalBarChart data={chartData} />;
+      // For array fields (like diagnoses), get first value or the value itself
+      const highlightedCategory = Array.isArray(hoveredValue)
+        ? hoveredValue[0]
+        : hoveredValue != null
+        ? String(hoveredValue)
+        : null;
+      return (
+        <HorizontalBarChart
+          data={chartData}
+          highlightedCategory={highlightedCategory}
+        />
+      );
     }
 
     case "vertical-bar": {
@@ -101,14 +117,27 @@ function VisualizationContent({
           .filter((v): v is string => v != null && v !== "");
         const medianValue = values.length > 0 ? calculateOrdinalMedian(values, categories) : undefined;
         
-        return <OrdinalBarChart data={chartData} medianValue={medianValue} />;
+        const highlightedCategory = hoveredValue != null ? String(hoveredValue) : null;
+        return (
+          <OrdinalBarChart
+            data={chartData}
+            medianValue={medianValue}
+            highlightedCategory={highlightedCategory}
+          />
+        );
       } else {
         // Numeric data (histogram)
         const histogramData = prepareHistogramData(samples, field);
         if (!histogramData) {
           return <EmptyState />;
         }
-        return <VerticalBarChart data={histogramData} />;
+        const highlightedValue = typeof hoveredValue === "number" ? hoveredValue : null;
+        return (
+          <VerticalBarChart
+            data={histogramData}
+            highlightedValue={highlightedValue}
+          />
+        );
       }
     }
 
@@ -135,7 +164,14 @@ function VisualizationContent({
     case "donut": {
       const distribution = calculateCategoryDistribution(samples, field);
       const chartData = createDonutData(distribution, colorMap);
-      return <DonutChart data={chartData} size={100} />;
+      const highlightedCategory = hoveredValue != null ? String(hoveredValue) : null;
+      return (
+        <DonutChart
+          data={chartData}
+          size={100}
+          highlightedCategory={highlightedCategory}
+        />
+      );
     }
 
     case "none":
