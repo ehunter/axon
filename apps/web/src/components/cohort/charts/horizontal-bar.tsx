@@ -53,20 +53,21 @@ export function HorizontalBarChart({
     },
   };
 
-  // Calculate row height for value alignment
-  const rowCount = chartData.length;
-  const chartHeight = height - 8; // Account for top/bottom margin
-  const rowHeight = chartHeight / rowCount;
+  // Fixed row height and gap for consistent spacing
+  const rowHeight = 28;
+  const rowGap = 6;
+  const calculatedHeight = chartData.length * rowHeight + (chartData.length - 1) * rowGap;
 
   return (
     <div className="flex w-full gap-2" style={{ height }}>
       {/* Chart area - bars with labels inside */}
       <div className="flex-1 min-w-0">
-        <ChartContainer config={chartConfig} className="w-full h-full">
+        <ChartContainer config={chartConfig} className="w-full" style={{ height: calculatedHeight }}>
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ left: 0, right: 0, top: 4, bottom: 4 }}
+            margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+            barCategoryGap={rowGap}
           >
             <YAxis
               dataKey="name"
@@ -88,7 +89,7 @@ export function HorizontalBarChart({
               dataKey="value"
               radius={[0, 4, 4, 0]}
               fill={accentColor}
-              barSize={28}
+              barSize={rowHeight}
             >
               {/* Label inside the bar (left side) */}
               <LabelList
@@ -104,10 +105,10 @@ export function HorizontalBarChart({
         </ChartContainer>
       </div>
 
-      {/* Values column - flush right */}
+      {/* Values column - flush right, aligned to top */}
       <div
-        className="flex flex-col justify-around shrink-0 py-1"
-        style={{ width: 32 }}
+        className="flex flex-col shrink-0"
+        style={{ width: 32, gap: rowGap }}
       >
         {chartData.map((item, index) => (
           <span
