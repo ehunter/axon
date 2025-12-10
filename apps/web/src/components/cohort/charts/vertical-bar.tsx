@@ -34,9 +34,22 @@ export function VerticalBarChart({
 }: VerticalBarChartProps) {
   // Normalize data to array format
   const isHistogram = "bins" in data;
+  
+  // Determine decimal precision based on data
+  const getPrecision = (values: number[]): number => {
+    // Check if any value has decimals
+    const hasDecimals = values.some((v) => v % 1 !== 0);
+    if (!hasDecimals) return 0;
+    
+    // Find max decimal places needed (up to 1)
+    return 1;
+  };
+  
+  const precision = isHistogram ? getPrecision(data.bins) : 0;
+  
   const chartData = isHistogram
     ? data.counts.map((count, i) => ({
-        name: `${data.bins[i].toFixed(0)}`,
+        name: data.bins[i].toFixed(precision),
         value: count,
       }))
     : data.map((d) => ({
