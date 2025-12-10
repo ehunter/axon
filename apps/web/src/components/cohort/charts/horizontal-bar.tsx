@@ -1,30 +1,33 @@
 /**
  * Horizontal Bar Chart
  * 
- * Displays categorical distribution as horizontal bars.
+ * Displays categorical distribution as horizontal bars using Recharts.
  * Used for Sample Types, Clinical Diagnosis, Source columns.
  */
 
+"use client";
+
+import { Bar, BarChart, XAxis, YAxis, Cell } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { BarChartData } from "@/types/cohort";
 
 interface HorizontalBarChartProps {
   data: BarChartData[];
-  maxValue?: number;
   height?: number;
-  barHeight?: number;
   showLabels?: boolean;
-  showCounts?: boolean;
   accentColor?: string;
 }
 
 export function HorizontalBarChart({
   data,
-  maxValue,
   height = 160,
-  barHeight = 32,
   showLabels = true,
-  showCounts = true,
-  accentColor = "var(--chart-1)",
+  accentColor = "hsl(186, 53%, 32%)", // Teal
 }: HorizontalBarChartProps) {
   if (data.length === 0) {
     return (
@@ -34,46 +37,47 @@ export function HorizontalBarChart({
     );
   }
 
-  const max = maxValue || Math.max(...data.map((d) => d.value));
-  const gap = 2;
+  // Take top 5 categories
+  const chartData = data.slice(0, 5).map((item) => ({
+    name: item.label,
+    value: item.value,
+  }));
+
+  const chartConfig: ChartConfig = {
+    value: {
+      label: "Count",
+      color: accentColor,
+    },
+  };
 
   return (
-    <div className="flex flex-col gap-[2px] w-full" style={{ maxHeight: height }}>
-      {data.slice(0, 5).map((item, index) => {
-        const widthPercent = max > 0 ? (item.value / max) * 100 : 0;
-        
-        return (
-          <div
-            key={item.label}
-            className="flex items-center justify-between px-2 py-2 relative"
-            style={{ height: barHeight }}
-          >
-            {/* Bar background */}
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-full rounded-sm"
-              style={{
-                width: `${Math.max(widthPercent, 2)}%`,
-                backgroundColor: "hsl(var(--muted))",
-              }}
-            />
-            
-            {/* Label */}
-            {showLabels && (
-              <span className="relative z-10 text-sm font-medium text-foreground truncate">
-                {item.label}
-              </span>
-            )}
-            
-            {/* Count */}
-            {showCounts && (
-              <span className="relative z-10 text-sm font-medium text-muted-foreground">
-                {item.value}
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <ChartContainer config={chartConfig} className="w-full" style={{ height }}>
+      <BarChart
+        data={chartData}
+        layout="vertical"
+        margin={{ left: 0, right: 8, top: 0, bottom: 0 }}
+      >
+        <YAxis
+          dataKey="name"
+          type="category"
+          tickLine={false}
+          axisLine={false}
+          width={80}
+          tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+          tickFormatter={(value) => value.length > 12 ? `${value.slice(0, 12)}…` : value}
+        />
+        <XAxis type="number" hide />
+        <ChartTooltip
+          cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+          content={<ChartTooltipContent />}
+        />
+        <Bar
+          dataKey="value"
+          radius={[0, 4, 4, 0]}
+          fill={accentColor}
+          background={{ fill: "hsl(var(--muted))", radius: 4 }}
+        />
+      </BarChart>
+    </ChartContainer>
   );
 }
-

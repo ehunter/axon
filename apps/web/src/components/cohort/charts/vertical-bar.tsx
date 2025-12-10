@@ -1,11 +1,20 @@
 /**
  * Vertical Bar Chart / Histogram
  * 
- * Displays numeric distribution as vertical bars.
+ * Displays numeric distribution as vertical bars using Recharts.
  * Used for Braak Score, PMI, RIN, Age columns.
  * Includes median indicator.
  */
 
+"use client";
+
+import { Bar, BarChart, XAxis, YAxis, ReferenceLine, Cell } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { HistogramData, BarChartData } from "@/types/cohort";
 
 interface VerticalBarChartProps {
@@ -21,17 +30,23 @@ export function VerticalBarChart({
   height = 150,
   showMedian = true,
   medianLabel = "Median",
-  accentColor = "hsl(var(--chart-1))",
+  accentColor = "hsl(186, 53%, 32%)", // Teal
 }: VerticalBarChartProps) {
-  // Normalize data to array of values
+  // Normalize data to array format
   const isHistogram = "bins" in data;
-  const values = isHistogram ? data.counts : data.map((d) => d.value);
-  const labels = isHistogram 
-    ? data.bins.slice(0, -1).map((b, i) => `${b.toFixed(0)}-${data.bins[i + 1].toFixed(0)}`)
-    : data.map((d) => d.label);
+  const chartData = isHistogram
+    ? data.counts.map((count, i) => ({
+        name: `${data.bins[i].toFixed(0)}`,
+        value: count,
+      }))
+    : data.map((d) => ({
+        name: d.label,
+        value: d.value,
+      }));
+
   const median = isHistogram ? data.median : undefined;
 
-  if (values.length === 0) {
+  if (chartData.length === 0 || chartData.every((d) => d.value === 0)) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         No data
@@ -39,48 +54,49 @@ export function VerticalBarChart({
     );
   }
 
-  const maxValue = Math.max(...values);
-  const barWidth = Math.max(8, Math.floor(100 / values.length) - 2);
-  const chartHeight = height - 50; // Leave room for median indicator
+  const chartConfig: ChartConfig = {
+    value: {
+      label: "Count",
+      color: accentColor,
+    },
+  };
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Chart area */}
-      <div 
-        className="flex items-end justify-center gap-[4px] w-full"
-        style={{ height: chartHeight }}
-      >
-        {values.map((value, index) => {
-          const heightPercent = maxValue > 0 ? (value / maxValue) * 100 : 0;
-          
-          return (
-            <div
-              key={index}
-              className="rounded-t-sm transition-all duration-200 hover:opacity-80"
-              style={{
-                width: barWidth,
-                height: `${Math.max(heightPercent, 2)}%`,
-                backgroundColor: accentColor,
-                minHeight: 4,
-              }}
-              title={`${labels[index]}: ${value}`}
-            />
-          );
-        })}
-      </div>
+      <ChartContainer config={chartConfig} className="w-full" style={{ height: height - 40 }}>
+        <BarChart
+          data={chartData}
+          margin={{ left: 0, right: 0, top: 8, bottom: 0 }}
+        >
+          <XAxis 
+            dataKey="name" 
+            tickLine={false}
+            axisLine={false}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          />
+          <YAxis hide />
+          <ChartTooltip
+            cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+            content={<ChartTooltipContent />}
+          />
+          <Bar
+            dataKey="value"
+            radius={[4, 4, 0, 0]}
+            fill={accentColor}
+          />
+        </BarChart>
+      </ChartContainer>
 
       {/* Median indicator */}
       {showMedian && median != null && (
-        <div className="flex flex-col items-center mt-2">
-          {/* Triangle pointer */}
+        <div className="flex flex-col items-center">
           <div 
             className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent"
             style={{ borderBottomColor: "hsl(var(--muted-foreground))" }}
           />
-          {/* Label and value */}
-          <div className="flex flex-col items-center px-2 py-1">
-            <span className="text-sm text-muted-foreground">{medianLabel}</span>
-            <span className="text-base font-medium text-foreground">
+          <div className="flex flex-col items-center px-2 py-0.5">
+            <span className="text-xs text-muted-foreground">{medianLabel}</span>
+            <span className="text-sm font-medium text-foreground">
               {typeof median === "number" ? median.toFixed(1) : median}
             </span>
           </div>
@@ -105,9 +121,9 @@ export function OrdinalBarChart({
   data,
   height = 150,
   medianValue,
-  accentColor = "hsl(var(--chart-1))",
+  accentColor = "hsl(186, 53%, 32%)", // Teal
 }: OrdinalBarChartProps) {
-  if (data.length === 0) {
+  if (data.length === 0 || data.every((d) => d.value === 0)) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         No data
@@ -115,49 +131,57 @@ export function OrdinalBarChart({
     );
   }
 
-  const maxValue = Math.max(...data.map((d) => d.value));
-  const chartHeight = height - 50;
+  const chartData = data.map((d) => ({
+    name: d.label,
+    value: d.value,
+  }));
+
+  const chartConfig: ChartConfig = {
+    value: {
+      label: "Count",
+      color: accentColor,
+    },
+  };
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Chart area */}
-      <div 
-        className="flex items-end justify-center gap-[4px] w-full"
-        style={{ height: chartHeight }}
-      >
-        {data.map((item) => {
-          const heightPercent = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
-          
-          return (
-            <div
-              key={item.label}
-              className="rounded-t-sm transition-all duration-200 hover:opacity-80"
-              style={{
-                width: 12,
-                height: `${Math.max(heightPercent, 2)}%`,
-                backgroundColor: accentColor,
-                minHeight: item.value > 0 ? 4 : 0,
-              }}
-              title={`${item.label}: ${item.value}`}
-            />
-          );
-        })}
-      </div>
+      <ChartContainer config={chartConfig} className="w-full" style={{ height: height - 40 }}>
+        <BarChart
+          data={chartData}
+          margin={{ left: 0, right: 0, top: 8, bottom: 0 }}
+        >
+          <XAxis 
+            dataKey="name" 
+            tickLine={false}
+            axisLine={false}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          />
+          <YAxis hide />
+          <ChartTooltip
+            cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+            content={<ChartTooltipContent />}
+          />
+          <Bar
+            dataKey="value"
+            radius={[4, 4, 0, 0]}
+            fill={accentColor}
+          />
+        </BarChart>
+      </ChartContainer>
 
       {/* Median indicator */}
       {medianValue && (
-        <div className="flex flex-col items-center mt-2">
+        <div className="flex flex-col items-center">
           <div 
             className="w-0 h-0 border-l-[5px] border-r-[5px] border-b-[6px] border-transparent"
             style={{ borderBottomColor: "hsl(var(--muted-foreground))" }}
           />
-          <div className="flex flex-col items-center px-2 py-1">
-            <span className="text-sm text-muted-foreground">Median</span>
-            <span className="text-base font-medium text-foreground">{medianValue}</span>
+          <div className="flex flex-col items-center px-2 py-0.5">
+            <span className="text-xs text-muted-foreground">Median</span>
+            <span className="text-sm font-medium text-foreground">{medianValue}</span>
           </div>
         </div>
       )}
     </div>
   );
 }
-
