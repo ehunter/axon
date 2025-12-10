@@ -44,8 +44,10 @@ export function BadgeCell({
   if (value == null || (Array.isArray(value) && value.length === 0)) {
     return (
       <div
-        className={`flex items-center h-10 px-3 transition-colors ${
-          isHovered ? "bg-muted" : "bg-secondary"
+        className={`flex items-center h-10 px-3 transition-colors cursor-default ${
+          isHovered
+            ? "bg-muted hover:bg-muted-foreground/20"
+            : "bg-secondary hover:bg-muted/70"
         }`}
         style={{ width, minWidth: width }}
         onMouseEnter={onMouseEnter}
@@ -60,8 +62,10 @@ export function BadgeCell({
 
   return (
     <div
-      className={`flex items-center gap-2 h-10 px-3 overflow-hidden transition-colors ${
-        isHovered ? "bg-muted" : "bg-secondary"
+      className={`flex items-center gap-2 h-10 px-3 overflow-hidden transition-colors cursor-default ${
+        isHovered
+          ? "bg-muted hover:bg-muted-foreground/20"
+          : "bg-secondary hover:bg-muted/70"
       }`}
       style={{ width, minWidth: width }}
       onMouseEnter={onMouseEnter}
