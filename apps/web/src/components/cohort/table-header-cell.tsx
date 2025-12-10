@@ -13,6 +13,7 @@ import {
   prepareBarChartData,
   prepareHistogramData,
   prepareOrdinalBarData,
+  prepareScaleChartData,
   calculateNumericStats,
   getFieldValue,
 } from "@/lib/cohort/column-generator";
@@ -21,6 +22,7 @@ import {
   VerticalBarChart,
   OrdinalBarChart,
   DonutChart,
+  ScaleChart,
   createDonutData,
 } from "./charts";
 
@@ -65,7 +67,7 @@ function VisualizationContent({
   column: ColumnDefinition;
   samples: CohortSample[];
 }) {
-  const { visualization, field, dataType, categories, colorMap } = column;
+  const { visualization, field, dataType, categories, colorMap, scaleMin, scaleMax } = column;
 
   switch (visualization) {
     case "horizontal-bar": {
@@ -95,6 +97,20 @@ function VisualizationContent({
         }
         return <VerticalBarChart data={histogramData} />;
       }
+    }
+
+    case "scale": {
+      // Bounded continuous data (e.g., RIN 1-10)
+      const scaleData = prepareScaleChartData(
+        samples,
+        field,
+        scaleMin ?? 1,
+        scaleMax ?? 10
+      );
+      if (!scaleData) {
+        return <EmptyState />;
+      }
+      return <ScaleChart data={scaleData} />;
     }
 
     case "donut": {

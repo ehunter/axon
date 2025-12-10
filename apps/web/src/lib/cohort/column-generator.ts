@@ -15,6 +15,7 @@ import {
   CategoryDistribution,
   BarChartData,
   HistogramData,
+  ScaleChartData,
 } from "@/types/cohort";
 
 // ============================================================================
@@ -311,6 +312,36 @@ export function prepareOrdinalBarData(
     label,
     value: distribution[label] || 0,
   }));
+}
+
+/**
+ * Prepare scale chart data for bounded continuous values (e.g., RIN 1-10)
+ */
+export function prepareScaleChartData(
+  samples: CohortSample[],
+  field: string,
+  scaleMin: number,
+  scaleMax: number
+): ScaleChartData | null {
+  const values = samples
+    .map((s) => getFieldValue(s, field))
+    .filter((v): v is number => typeof v === "number" && !isNaN(v));
+
+  if (values.length === 0) return null;
+
+  // Calculate median
+  const sorted = [...values].sort((a, b) => a - b);
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+  return {
+    values,
+    min: scaleMin,
+    max: scaleMax,
+    median,
+  };
 }
 
 // ============================================================================

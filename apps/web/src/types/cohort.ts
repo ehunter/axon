@@ -78,6 +78,7 @@ export type VisualizationType =
   | "horizontal-bar" // Horizontal bar chart for categorical
   | "vertical-bar"   // Vertical bar chart / histogram for numeric
   | "donut"          // Donut/pie chart for binary categorical
+  | "scale"          // Scale/strip chart for bounded continuous data (e.g., RIN 1-10)
   ;
 
 /**
@@ -111,6 +112,10 @@ export interface ColumnDefinition {
   // Data type hints for visualization
   dataType: "text" | "categorical" | "ordinal" | "numeric";
   categories?: string[]; // For categorical/ordinal - known categories
+  
+  // Scale visualization options (for bounded continuous data)
+  scaleMin?: number; // Minimum value on scale
+  scaleMax?: number; // Maximum value on scale
   
   // Formatting
   format?: (value: unknown) => string;
@@ -211,11 +216,13 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     id: "rin",
     label: "RIN",
     field: "rin",
-    visualization: "vertical-bar",
+    visualization: "scale",
     cellType: "numeric",
-    minWidth: 120,
-    maxWidth: 160,
+    minWidth: 140,
+    maxWidth: 180,
     dataType: "numeric",
+    scaleMin: 1,
+    scaleMax: 10,
     format: (v) => v != null ? `${Number(v).toFixed(1)}` : "—",
   },
   {
@@ -249,6 +256,13 @@ export interface DonutChartData {
 export interface HistogramData {
   bins: number[];
   counts: number[];
+  median?: number;
+}
+
+export interface ScaleChartData {
+  values: number[];
+  min: number;
+  max: number;
   median?: number;
 }
 
