@@ -37,8 +37,8 @@ export function TableHeaderCell({
 }: TableHeaderCellProps) {
   return (
     <div
-      className="flex flex-col gap-4 px-4 py-6 bg-muted"
-      style={{ width: column.width, height, minWidth: column.width }}
+      className="flex flex-col gap-4 px-4 py-6"
+      style={{ width: column.width, height, minWidth: column.width, backgroundColor: "#212636" }}
     >
       {/* Column title */}
       <h3 className="text-xl font-normal text-foreground">
