@@ -268,3 +268,82 @@ async def get_conversation(
         created_at=conversation.created_at.isoformat(),
         updated_at=conversation.updated_at.isoformat(),
     )
+
+
+class SampleDataItem(BaseModel):
+    """Full sample data from samples table."""
+    rin_score: float | None
+    postmortem_interval_hours: float | None
+    ph_level: float | None
+    primary_diagnosis: str | None
+    donor_race: str | None
+    brain_region: str | None
+    tissue_type: str | None
+    raw_data: dict
+
+
+class SelectionSampleItem(BaseModel):
+    """Sample in the selection with full data."""
+    id: str
+    sample_external_id: str
+    sample_group: str
+    diagnosis: str | None
+    age: int | None
+    sex: str | None
+    source_bank: str | None
+    added_at: str | None
+    sample_data: SampleDataItem | None = None
+
+
+class SelectionResponse(BaseModel):
+    """Response for selection endpoint."""
+    conversation_id: str
+    samples: list[SelectionSampleItem]
+    case_count: int
+    control_count: int
+
+
+@router.get("/selection/{conversation_id}", response_model=SelectionResponse)
+async def get_selection(
+    conversation_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> SelectionResponse:
+    """Get the sample selection for a conversation with full sample data.
+    
+    Returns all samples selected in the conversation along with their
+    full data from the samples table for display in the cohort data table.
+    
+    Args:
+        conversation_id: The conversation ID
+        
+    Returns:
+        Selection data with full sample details
+    """
+    persistence_service = ConversationService(db)
+    
+    # Get selection with full sample data
+    samples = await persistence_service.get_selection_with_samples(conversation_id)
+    
+    # Calculate counts
+    case_count = sum(1 for s in samples if s.get("sample_group") == "case")
+    control_count = sum(1 for s in samples if s.get("sample_group") == "control")
+    
+    return SelectionResponse(
+        conversation_id=conversation_id,
+        samples=[
+            SelectionSampleItem(
+                id=s["id"],
+                sample_external_id=s["sample_external_id"],
+                sample_group=s["sample_group"],
+                diagnosis=s.get("diagnosis"),
+                age=s.get("age"),
+                sex=s.get("sex"),
+                source_bank=s.get("source_bank"),
+                added_at=s.get("added_at"),
+                sample_data=SampleDataItem(**s["sample_data"]) if s.get("sample_data") else None,
+            )
+            for s in samples
+        ],
+        case_count=case_count,
+        control_count=control_count,
+    )

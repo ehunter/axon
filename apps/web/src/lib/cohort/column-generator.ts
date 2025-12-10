@@ -1,0 +1,282 @@
+/**
+ * Column Generator for Cohort Data Table
+ * 
+ * Analyzes sample data and generates appropriate column configurations
+ * with visualizations based on data type and distribution.
+ */
+
+import {
+  CohortSample,
+  ColumnDefinition,
+  DEFAULT_COLUMNS,
+  VisualizationType,
+  CellType,
+  NumericStats,
+  CategoryDistribution,
+  BarChartData,
+  HistogramData,
+} from "@/types/cohort";
+
+// ============================================================================
+// Column Generation
+// ============================================================================
+
+/**
+ * Generate column definitions from sample data
+ * Uses default columns for known fields, can be extended for custom fields
+ */
+export function generateColumns(samples: CohortSample[]): ColumnDefinition[] {
+  // Start with default columns, filter to those with data
+  const columns = DEFAULT_COLUMNS.filter((col) => {
+    // Check if any sample has data for this field
+    return samples.some((sample) => {
+      const value = getFieldValue(sample, col.field);
+      return value != null && value !== "" && 
+        (Array.isArray(value) ? value.length > 0 : true);
+    });
+  });
+
+  return columns;
+}
+
+/**
+ * Get a field value from a sample, supporting nested paths
+ */
+export function getFieldValue(sample: CohortSample, field: string): unknown {
+  if (field.includes(".")) {
+    // Handle nested paths like "rawData.braakStage"
+    const parts = field.split(".");
+    let value: unknown = sample;
+    for (const part of parts) {
+      if (value == null || typeof value !== "object") return null;
+      value = (value as Record<string, unknown>)[part];
+    }
+    return value;
+  }
+  return sample[field as keyof CohortSample];
+}
+
+// ============================================================================
+// Statistics Calculation
+// ============================================================================
+
+/**
+ * Calculate numeric statistics for a field
+ */
+export function calculateNumericStats(
+  samples: CohortSample[],
+  field: string
+): NumericStats | null {
+  const values = samples
+    .map((s) => getFieldValue(s, field))
+    .filter((v): v is number => typeof v === "number" && !isNaN(v));
+
+  if (values.length === 0) return null;
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const sum = values.reduce((a, b) => a + b, 0);
+  const mean = sum / values.length;
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+  return {
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+    mean,
+    median,
+  };
+}
+
+/**
+ * Calculate category distribution for a field
+ */
+export function calculateCategoryDistribution(
+  samples: CohortSample[],
+  field: string
+): CategoryDistribution {
+  const distribution: CategoryDistribution = {};
+
+  for (const sample of samples) {
+    const value = getFieldValue(sample, field);
+    
+    if (Array.isArray(value)) {
+      // Handle array fields like diagnoses
+      for (const item of value) {
+        if (item != null && item !== "") {
+          const key = String(item);
+          distribution[key] = (distribution[key] || 0) + 1;
+        }
+      }
+    } else if (value != null && value !== "") {
+      const key = String(value);
+      distribution[key] = (distribution[key] || 0) + 1;
+    }
+  }
+
+  return distribution;
+}
+
+// ============================================================================
+// Chart Data Preparation
+// ============================================================================
+
+/**
+ * Prepare horizontal bar chart data from category distribution
+ */
+export function prepareBarChartData(
+  distribution: CategoryDistribution,
+  colorMap?: Record<string, string>
+): BarChartData[] {
+  return Object.entries(distribution)
+    .sort((a, b) => b[1] - a[1]) // Sort by count descending
+    .map(([label, value]) => ({
+      label,
+      value,
+      color: colorMap?.[label],
+    }));
+}
+
+/**
+ * Prepare histogram data from numeric values
+ */
+export function prepareHistogramData(
+  samples: CohortSample[],
+  field: string,
+  binCount: number = 10
+): HistogramData | null {
+  const values = samples
+    .map((s) => getFieldValue(s, field))
+    .filter((v): v is number => typeof v === "number" && !isNaN(v));
+
+  if (values.length === 0) return null;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const binWidth = (max - min) / binCount;
+
+  // Create bins
+  const bins: number[] = [];
+  const counts: number[] = new Array(binCount).fill(0);
+
+  for (let i = 0; i <= binCount; i++) {
+    bins.push(min + i * binWidth);
+  }
+
+  // Count values in each bin
+  for (const value of values) {
+    const binIndex = Math.min(
+      Math.floor((value - min) / binWidth),
+      binCount - 1
+    );
+    counts[binIndex]++;
+  }
+
+  // Calculate median
+  const sorted = [...values].sort((a, b) => a - b);
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+  return { bins, counts, median };
+}
+
+/**
+ * Prepare ordinal bar chart data (e.g., Braak stages)
+ */
+export function prepareOrdinalBarData(
+  distribution: CategoryDistribution,
+  categories: string[]
+): BarChartData[] {
+  // Use predefined order
+  return categories.map((label) => ({
+    label,
+    value: distribution[label] || 0,
+  }));
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Get unique values for a categorical field
+ */
+export function getUniqueValues(
+  samples: CohortSample[],
+  field: string
+): string[] {
+  const values = new Set<string>();
+
+  for (const sample of samples) {
+    const value = getFieldValue(sample, field);
+    
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item != null && item !== "") {
+          values.add(String(item));
+        }
+      }
+    } else if (value != null && value !== "") {
+      values.add(String(value));
+    }
+  }
+
+  return Array.from(values);
+}
+
+/**
+ * Determine the best visualization type for a field based on data
+ */
+export function inferVisualizationType(
+  samples: CohortSample[],
+  field: string,
+  dataType: "text" | "categorical" | "ordinal" | "numeric"
+): VisualizationType {
+  const uniqueValues = getUniqueValues(samples, field);
+
+  if (dataType === "numeric") {
+    return "vertical-bar";
+  }
+
+  if (dataType === "ordinal") {
+    return "vertical-bar";
+  }
+
+  if (dataType === "categorical") {
+    // Use donut for binary, bar for multi-value
+    return uniqueValues.length <= 2 ? "donut" : "horizontal-bar";
+  }
+
+  return "none";
+}
+
+/**
+ * Format a value for display based on data type
+ */
+export function formatValue(
+  value: unknown,
+  dataType: string,
+  format?: (v: unknown) => string
+): string {
+  if (format) {
+    return format(value);
+  }
+
+  if (value == null) {
+    return "—";
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  if (typeof value === "number") {
+    return value.toFixed(dataType === "numeric" ? 1 : 0);
+  }
+
+  return String(value);
+}
+
