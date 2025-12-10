@@ -30,12 +30,16 @@ interface TableHeaderCellProps {
   column: ColumnDefinition;
   samples: CohortSample[];
   height?: number;
+  hoveredSampleIndex?: number | null;
+  onHoverSample?: (index: number | null) => void;
 }
 
 export function TableHeaderCell({
   column,
   samples,
   height = 284,
+  hoveredSampleIndex,
+  onHoverSample,
 }: TableHeaderCellProps) {
   const width = column.width ?? 150;
   
@@ -51,7 +55,12 @@ export function TableHeaderCell({
 
       {/* Visualization */}
       <div className="flex-1 min-h-0">
-        <VisualizationContent column={column} samples={samples} />
+        <VisualizationContent
+          column={column}
+          samples={samples}
+          hoveredSampleIndex={hoveredSampleIndex}
+          onHoverSample={onHoverSample}
+        />
       </div>
     </div>
   );
@@ -63,9 +72,13 @@ export function TableHeaderCell({
 function VisualizationContent({
   column,
   samples,
+  hoveredSampleIndex,
+  onHoverSample,
 }: {
   column: ColumnDefinition;
   samples: CohortSample[];
+  hoveredSampleIndex?: number | null;
+  onHoverSample?: (index: number | null) => void;
 }) {
   const { visualization, field, dataType, categories, colorMap, scaleMin, scaleMax } = column;
 
@@ -110,7 +123,13 @@ function VisualizationContent({
       if (!scaleData) {
         return <EmptyState />;
       }
-      return <ScaleChart data={scaleData} />;
+      return (
+        <ScaleChart
+          data={scaleData}
+          hoveredSampleIndex={hoveredSampleIndex}
+          onHoverSample={onHoverSample}
+        />
+      );
     }
 
     case "donut": {

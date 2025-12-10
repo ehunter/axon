@@ -3,10 +3,12 @@
  * 
  * Interactive tabular view for exploring recommended cohort samples.
  * Each column has a header with visualization and data rows below.
+ * Supports bidirectional hover highlighting between table rows and chart data points.
  */
 
 "use client";
 
+import { useState } from "react";
 import { CohortSample, ColumnDefinition } from "@/types/cohort";
 import { generateColumns, getFieldValue } from "@/lib/cohort/column-generator";
 import { TableHeaderCell } from "./table-header-cell";
@@ -27,6 +29,9 @@ export function SampleDataTable({
 }: SampleDataTableProps) {
   // Generate columns from data if not provided
   const columns = customColumns || generateColumns(samples);
+  
+  // Hover state for bidirectional highlighting
+  const [hoveredSampleIndex, setHoveredSampleIndex] = useState<number | null>(null);
 
   if (samples.length === 0) {
     return (
@@ -64,7 +69,12 @@ export function SampleDataTable({
           {columns.map((column) => (
             <div key={column.id} className="flex flex-col gap-px">
               {/* Header cell with chart */}
-              <TableHeaderCell column={column} samples={samples} />
+              <TableHeaderCell
+                column={column}
+                samples={samples}
+                hoveredSampleIndex={hoveredSampleIndex}
+                onHoverSample={setHoveredSampleIndex}
+              />
               
               {/* Data rows */}
               {samples.map((sample, rowIndex) => (
@@ -72,6 +82,9 @@ export function SampleDataTable({
                   key={`${column.id}-${rowIndex}`}
                   column={column}
                   sample={sample}
+                  isHovered={hoveredSampleIndex === rowIndex}
+                  onMouseEnter={() => setHoveredSampleIndex(rowIndex)}
+                  onMouseLeave={() => setHoveredSampleIndex(null)}
                 />
               ))}
             </div>
@@ -88,9 +101,15 @@ export function SampleDataTable({
 function DataCell({
   column,
   sample,
+  isHovered,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   column: ColumnDefinition;
   sample: CohortSample;
+  isHovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }) {
   const value = getFieldValue(sample, column.field);
 
@@ -102,6 +121,9 @@ function DataCell({
           value={value as string | string[] | null}
           width={column.width}
           colorMap={column.colorMap}
+          isHovered={isHovered}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       );
 
@@ -111,6 +133,9 @@ function DataCell({
           value={value as number | string | null}
           width={column.width}
           format={column.format}
+          isHovered={isHovered}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       );
 
@@ -120,6 +145,9 @@ function DataCell({
         <TextCell
           value={value != null ? String(value) : null}
           width={column.width}
+          isHovered={isHovered}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         />
       );
   }

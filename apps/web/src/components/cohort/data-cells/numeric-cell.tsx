@@ -9,9 +9,20 @@ interface NumericCellProps {
   width?: number;
   format?: (value: unknown) => string;
   suffix?: string;
+  isHovered?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-export function NumericCell({ value, width = 150, format, suffix }: NumericCellProps) {
+export function NumericCell({
+  value,
+  width = 150,
+  format,
+  suffix,
+  isHovered = false,
+  onMouseEnter,
+  onMouseLeave,
+}: NumericCellProps) {
   let displayValue = "—";
 
   if (value != null && value !== "") {
@@ -30,8 +41,12 @@ export function NumericCell({ value, width = 150, format, suffix }: NumericCellP
 
   return (
     <div
-      className="flex items-center h-10 px-3 bg-secondary"
+      className={`flex items-center h-10 px-3 transition-colors ${
+        isHovered ? "bg-muted" : "bg-secondary"
+      }`}
       style={{ width, minWidth: width }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <span className="text-base text-foreground">
         {displayValue}
