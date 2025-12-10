@@ -8,7 +8,7 @@
 
 "use client";
 
-import { Bar, BarChart, XAxis, YAxis, LabelList } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, LabelList, Cell } from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -21,12 +21,17 @@ interface HorizontalBarChartProps {
   data: BarChartData[];
   height?: number;
   accentColor?: string;
+  highlightedCategory?: string | null;
 }
+
+const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
+const DIM_OPACITY = 0.4;
 
 export function HorizontalBarChart({
   data,
   height = 160,
   accentColor = "hsl(186, 53%, 32%)", // Teal
+  highlightedCategory,
 }: HorizontalBarChartProps) {
   if (data.length === 0) {
     return (
@@ -91,6 +96,18 @@ export function HorizontalBarChart({
               fill={accentColor}
               barSize={rowHeight}
             >
+              {/* Individual bar colors for highlighting */}
+              {chartData.map((entry, index) => {
+                const isHighlighted = highlightedCategory === entry.name;
+                const isDimmed = highlightedCategory != null && !isHighlighted;
+                return (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={isHighlighted ? HIGHLIGHT_COLOR : accentColor}
+                    opacity={isDimmed ? DIM_OPACITY : 1}
+                  />
+                );
+              })}
               {/* Label inside the bar (left side) */}
               <LabelList
                 dataKey="name"
@@ -110,15 +127,25 @@ export function HorizontalBarChart({
         className="flex flex-col shrink-0"
         style={{ width: 32, gap: rowGap }}
       >
-        {chartData.map((item, index) => (
-          <span
-            key={index}
-            className="text-[13px] font-semibold text-[#b5bcd3] text-right"
-            style={{ height: rowHeight, lineHeight: `${rowHeight}px` }}
-          >
-            {item.value}
-          </span>
-        ))}
+        {chartData.map((item, index) => {
+          const isHighlighted = highlightedCategory === item.name;
+          const isDimmed = highlightedCategory != null && !isHighlighted;
+          return (
+            <span
+              key={index}
+              className={`text-[13px] font-semibold text-right transition-opacity ${
+                isHighlighted ? "text-foreground" : "text-[#b5bcd3]"
+              }`}
+              style={{
+                height: rowHeight,
+                lineHeight: `${rowHeight}px`,
+                opacity: isDimmed ? DIM_OPACITY : 1,
+              }}
+            >
+              {item.value}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
