@@ -11,6 +11,9 @@ interface BadgeCellProps {
   value: string | string[] | null | undefined;
   width?: number;
   colorMap?: Record<string, string>;
+  isHovered?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 /**
@@ -30,12 +33,23 @@ function getBadgeVariant(value: string): string {
   return BADGE_VARIANTS[lowerValue] || BADGE_VARIANTS.default;
 }
 
-export function BadgeCell({ value, width = 150, colorMap }: BadgeCellProps) {
+export function BadgeCell({
+  value,
+  width = 150,
+  colorMap,
+  isHovered = false,
+  onMouseEnter,
+  onMouseLeave,
+}: BadgeCellProps) {
   if (value == null || (Array.isArray(value) && value.length === 0)) {
     return (
       <div
-        className="flex items-center h-10 px-3 bg-secondary"
+        className={`flex items-center h-10 px-3 transition-colors ${
+          isHovered ? "bg-muted" : "bg-secondary"
+        }`}
         style={{ width, minWidth: width }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         <span className="text-muted-foreground">—</span>
       </div>
@@ -46,8 +60,12 @@ export function BadgeCell({ value, width = 150, colorMap }: BadgeCellProps) {
 
   return (
     <div
-      className="flex items-center gap-2 h-10 px-3 bg-secondary overflow-hidden"
+      className={`flex items-center gap-2 h-10 px-3 overflow-hidden transition-colors ${
+        isHovered ? "bg-muted" : "bg-secondary"
+      }`}
       style={{ width, minWidth: width }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {values.slice(0, 3).map((v, i) => (
         <Badge key={i} value={v} />

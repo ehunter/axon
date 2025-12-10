@@ -15,6 +15,8 @@ interface ScaleChartProps {
   data: ScaleChartData;
   height?: number;
   accentColor?: string;
+  hoveredSampleIndex?: number | null;
+  onHoverSample?: (index: number | null) => void;
 }
 
 interface StackedDot {
@@ -29,9 +31,15 @@ export function ScaleChart({
   data,
   height = 150,
   accentColor = "hsl(186, 53%, 32%)", // Teal
+  hoveredSampleIndex,
+  onHoverSample,
 }: ScaleChartProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [localHoveredIndex, setLocalHoveredIndex] = useState<number | null>(null);
   const { values, min, max, median } = data;
+  
+  // Use external hover state if provided, otherwise use local state
+  const hoveredIndex = hoveredSampleIndex ?? localHoveredIndex;
+  const setHoveredIndex = onHoverSample ?? setLocalHoveredIndex;
 
   // Calculate position on scale (0-100%)
   const getPosition = (value: number): number => {
@@ -156,11 +164,16 @@ export function ScaleChart({
             >
               {/* Dot */}
               <div
-                className="rounded-full border-2 border-background transition-transform hover:scale-125 cursor-pointer"
+                className={`rounded-full border-2 transition-all cursor-pointer ${
+                  isHovered
+                    ? "border-foreground scale-150"
+                    : "border-background hover:scale-125"
+                }`}
                 style={{
                   width: dotSize,
                   height: dotSize,
                   backgroundColor: accentColor,
+                  boxShadow: isHovered ? "0 0 8px rgba(255,255,255,0.4)" : "none",
                 }}
               />
 
