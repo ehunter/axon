@@ -21,8 +21,10 @@ export function TextCell({
 }: TextCellProps) {
   return (
     <div
-      className={`flex items-center h-10 px-3 transition-colors ${
-        isHovered ? "bg-muted" : "bg-secondary"
+      className={`flex items-center h-10 px-3 transition-colors cursor-default ${
+        isHovered
+          ? "bg-muted hover:bg-muted-foreground/20"
+          : "bg-secondary hover:bg-muted/70"
       }`}
       style={{ width, minWidth: width }}
       onMouseEnter={onMouseEnter}
