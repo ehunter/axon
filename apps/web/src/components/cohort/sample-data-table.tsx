@@ -21,6 +21,12 @@ interface SampleDataTableProps {
   onExport?: () => void;
 }
 
+// Hover state type for column-specific highlighting
+interface HoverState {
+  sampleIndex: number;
+  columnId: string;
+}
+
 export function SampleDataTable({
   samples,
   columns: customColumns,
@@ -30,8 +36,8 @@ export function SampleDataTable({
   // Generate columns from data if not provided
   const columns = customColumns || generateColumns(samples);
   
-  // Hover state for bidirectional highlighting
-  const [hoveredSampleIndex, setHoveredSampleIndex] = useState<number | null>(null);
+  // Hover state for bidirectional highlighting (column-specific)
+  const [hoverState, setHoverState] = useState<HoverState | null>(null);
 
   if (samples.length === 0) {
     return (
@@ -66,29 +72,37 @@ export function SampleDataTable({
       {/* Table */}
       <div className="overflow-x-auto rounded-xl">
         <div className="flex gap-px min-w-max">
-          {columns.map((column) => (
-            <div key={column.id} className="flex flex-col gap-px">
-              {/* Header cell with chart */}
-              <TableHeaderCell
-                column={column}
-                samples={samples}
-                hoveredSampleIndex={hoveredSampleIndex}
-                onHoverSample={setHoveredSampleIndex}
-              />
-              
-              {/* Data rows */}
-              {samples.map((sample, rowIndex) => (
-                <DataCell
-                  key={`${column.id}-${rowIndex}`}
+          {columns.map((column) => {
+            // Only pass hover state to the column that owns it
+            const isHoveredColumn = hoverState?.columnId === column.id;
+            const hoveredSampleIndex = isHoveredColumn ? hoverState.sampleIndex : null;
+            
+            return (
+              <div key={column.id} className="flex flex-col gap-px">
+                {/* Header cell with chart */}
+                <TableHeaderCell
                   column={column}
-                  sample={sample}
-                  isHovered={hoveredSampleIndex === rowIndex}
-                  onMouseEnter={() => setHoveredSampleIndex(rowIndex)}
-                  onMouseLeave={() => setHoveredSampleIndex(null)}
+                  samples={samples}
+                  hoveredSampleIndex={hoveredSampleIndex}
+                  onHoverSample={(index) =>
+                    setHoverState(index !== null ? { sampleIndex: index, columnId: column.id } : null)
+                  }
                 />
-              ))}
-            </div>
-          ))}
+                
+                {/* Data rows */}
+                {samples.map((sample, rowIndex) => (
+                  <DataCell
+                    key={`${column.id}-${rowIndex}`}
+                    column={column}
+                    sample={sample}
+                    isHovered={isHoveredColumn && hoverState.sampleIndex === rowIndex}
+                    onMouseEnter={() => setHoverState({ sampleIndex: rowIndex, columnId: column.id })}
+                    onMouseLeave={() => setHoverState(null)}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
