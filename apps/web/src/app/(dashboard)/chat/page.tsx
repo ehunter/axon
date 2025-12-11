@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type FC, forwardRef } from "react";
+import { Suspense, useEffect, useRef, useState, useMemo, type FC, forwardRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ChatHeader } from "@/components/chat";
 import { useAxonRuntime } from "@/lib/assistant-ui/use-axon-runtime";
@@ -17,6 +17,8 @@ import { ArrowUp, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { RecommendedSamplesCard } from "@/components/chat/recommended-samples";
+import { parseSampleRecommendations, mightContainSamples } from "@/lib/chat/sample-parser";
 
 function ChatPageContent() {
   const searchParams = useSearchParams();
@@ -179,77 +181,130 @@ const AssistantMessage: FC = () => {
 const AssistantMessageText: FC = () => {
   const part = useMessagePartText();
   const text = part.type === "text" ? part.text : "";
+
+  // Check for sample recommendations
+  const parsedData = useMemo(() => {
+    if (mightContainSamples(text)) {
+      return parseSampleRecommendations(text);
+    }
+    return null;
+  }, [text]);
+
+  // If we found samples, render the interactive widget
+  if (parsedData?.hasSamples) {
+    return (
+      <div className="text-base leading-7 text-foreground prose prose-neutral dark:prose-invert max-w-none">
+        {/* Text before the table */}
+        {parsedData.beforeTable && (
+          <MarkdownContent text={parsedData.beforeTable} />
+        )}
+
+        {/* Interactive samples widget */}
+        <div className="my-6 not-prose">
+          <RecommendedSamplesCard
+            samples={parsedData.samples}
+            filters={parsedData.filters}
+            title="Recommended Samples"
+            onSaveToCohort={(sampleIds) => {
+              console.log("Save to cohort:", sampleIds);
+              // TODO: Integrate with cohort API
+            }}
+            onSubmitOrder={(sampleIds, config) => {
+              console.log("Submit order:", { sampleIds, config });
+              // TODO: Integrate with order API
+            }}
+          />
+        </div>
+
+        {/* Text after the table */}
+        {parsedData.afterTable && (
+          <MarkdownContent text={parsedData.afterTable} />
+        )}
+      </div>
+    );
+  }
+
+  // Default markdown rendering
   return (
     <div className="text-base leading-7 text-foreground prose prose-neutral dark:prose-invert max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          // Paragraphs
-          p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
-          // Headings
-          h2: ({ children }) => <h2 className="text-lg font-semibold mt-6 mb-3">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-2">{children}</h3>,
-          // Bold
-          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-          // Inline code
-          code: ({ children, className }) => {
-            // Check if it's a code block (has language class)
-            const isCodeBlock = className?.includes("language-");
-            if (isCodeBlock) {
-              return <code className={className}>{children}</code>;
-            }
-            return (
-              <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">
-                {children}
-              </code>
-            );
-          },
-          // Code blocks
-          pre: ({ children }) => (
-            <pre className="bg-muted p-4 rounded-lg overflow-x-auto my-4 text-sm">
-              {children}
-            </pre>
-          ),
-          // Tables - use muted-foreground/30 for more visible borders in dark mode
-          table: ({ children }) => (
-            <div className="overflow-x-auto my-4">
-              <table className="min-w-full border-collapse text-sm border border-muted-foreground/30">
-                {children}
-              </table>
-            </div>
-          ),
-          thead: ({ children }) => (
-            <thead>{children}</thead>
-          ),
-          tbody: ({ children }) => (
-            <tbody>{children}</tbody>
-          ),
-          tr: ({ children }) => (
-            <tr className="border-b border-muted-foreground/30">{children}</tr>
-          ),
-          th: ({ children }) => (
-            <th className="border border-muted-foreground/30 px-3 py-2 text-left font-semibold text-foreground">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="border border-muted-foreground/30 px-3 py-2">{children}</td>
-          ),
-          // Lists
-          ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>,
-          li: ({ children }) => <li className="leading-6">{children}</li>,
-          // Links
-          a: ({ href, children }) => (
-            <a href={href} className="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {text}
-      </ReactMarkdown>
+      <MarkdownContent text={text} />
     </div>
+  );
+};
+
+/**
+ * Markdown content renderer component - extracted for reuse
+ */
+const MarkdownContent: FC<{ text: string }> = ({ text }) => {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        // Paragraphs
+        p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
+        // Headings
+        h2: ({ children }) => <h2 className="text-lg font-semibold mt-6 mb-3">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-2">{children}</h3>,
+        // Bold
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        // Inline code
+        code: ({ children, className }) => {
+          // Check if it's a code block (has language class)
+          const isCodeBlock = className?.includes("language-");
+          if (isCodeBlock) {
+            return <code className={className}>{children}</code>;
+          }
+          return (
+            <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">
+              {children}
+            </code>
+          );
+        },
+        // Code blocks
+        pre: ({ children }) => (
+          <pre className="bg-muted p-4 rounded-lg overflow-x-auto my-4 text-sm">
+            {children}
+          </pre>
+        ),
+        // Tables - use muted-foreground/30 for more visible borders in dark mode
+        table: ({ children }) => (
+          <div className="overflow-x-auto my-4">
+            <table className="min-w-full border-collapse text-sm border border-muted-foreground/30">
+              {children}
+            </table>
+          </div>
+        ),
+        thead: ({ children }) => (
+          <thead>{children}</thead>
+        ),
+        tbody: ({ children }) => (
+          <tbody>{children}</tbody>
+        ),
+        tr: ({ children }) => (
+          <tr className="border-b border-muted-foreground/30">{children}</tr>
+        ),
+        th: ({ children }) => (
+          <th className="border border-muted-foreground/30 px-3 py-2 text-left font-semibold text-foreground">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="border border-muted-foreground/30 px-3 py-2">{children}</td>
+        ),
+        // Lists
+        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>,
+        li: ({ children }) => <li className="leading-6">{children}</li>,
+        // Links
+        a: ({ href, children }) => (
+          <a href={href} className="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {text}
+    </ReactMarkdown>
   );
 };
 
