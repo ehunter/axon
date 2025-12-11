@@ -22,7 +22,7 @@ interface BadgeCellProps {
 const BADGE_VARIANTS: Record<string, string> = {
   // Sample types
   case: "bg-teal-900/50 border-teal-700/50 text-teal-100",
-  control: "bg-muted border-border text-muted-foreground",
+  control: "bg-muted-foreground/20 border-muted-foreground/30 text-muted-foreground/90",
   
   // Default
   default: "bg-muted border-border text-foreground",
