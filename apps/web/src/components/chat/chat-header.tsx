@@ -13,7 +13,7 @@ export function ChatHeader({ title, onDropdownClick }: ChatHeaderProps) {
       <button
         type="button"
         onClick={onDropdownClick}
-        className="flex items-center gap-2 px-3 py-2 hover:bg-secondary/50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 border border-muted-foreground/15 rounded-lg hover:bg-secondary/50 transition-colors"
       >
         <span className="text-base text-foreground">{title}</span>
         <ChevronDown className="h-4 w-4 text-foreground" />
