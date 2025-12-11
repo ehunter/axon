@@ -39,7 +39,7 @@ export function StatsBar({ stats }: StatsBarProps) {
   }
 
   return (
-    <div className="flex items-center gap-4 px-5 py-2.5 bg-muted/50 border-b border-muted-foreground/30">
+    <div className="flex items-center gap-4 px-5 py-2.5 bg-[#212636] border-b border-muted-foreground/30">
       <BarChart3 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Overview
