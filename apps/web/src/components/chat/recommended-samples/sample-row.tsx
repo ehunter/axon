@@ -29,13 +29,13 @@ export function SampleRow({
       {/* Main row */}
       <tr
         className={`
-          border-b border-border transition-colors cursor-pointer
-          ${isSelected ? "bg-primary/10" : "bg-secondary hover:bg-muted/70"}
+          border-b border-muted-foreground/30 transition-colors cursor-pointer
+          ${isSelected ? "bg-primary/10" : "bg-transparent hover:bg-muted/50"}
         `}
         onClick={onExpand}
       >
         {/* Checkbox */}
-        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onChange={onSelect}
@@ -44,45 +44,45 @@ export function SampleRow({
         </td>
 
         {/* Sample ID */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <span className="text-sm font-medium text-foreground">
             {sample.externalId}
           </span>
         </td>
 
         {/* Source */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <span className="text-sm text-foreground">
             {sample.sourceBank || "—"}
           </span>
         </td>
 
         {/* Age/Sex */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <AgeSex age={sample.age} sex={sample.sex} />
         </td>
 
         {/* RIN - color coded */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <RinValue value={sample.rin} />
         </td>
 
         {/* PMI */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <span className="text-sm text-foreground">
             {sample.pmi != null ? `${sample.pmi}h` : "—"}
           </span>
         </td>
 
         {/* Co-Pathologies */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <span className="text-sm text-foreground">
             {sample.coPathologies || "—"}
           </span>
         </td>
 
         {/* Expand chevron */}
-        <td className="px-4 py-3">
+        <td className="px-3 py-2">
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform ${
               isExpanded ? "rotate-180" : ""
@@ -93,8 +93,8 @@ export function SampleRow({
 
       {/* Expanded details */}
       {isExpanded && (
-        <tr className="bg-muted/30">
-          <td colSpan={8} className="px-4 py-4">
+        <tr className="bg-muted/30 border-b border-muted-foreground/30">
+          <td colSpan={8} className="px-3 py-3">
             <ExpandedDetails sample={sample} />
           </td>
         </tr>

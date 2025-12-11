@@ -23,7 +23,7 @@ export function CardHeader({
   onFilterRemove,
 }: CardHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 px-5 py-4 border-b border-border">
+    <div className="flex flex-col gap-3 px-5 py-4 border-b border-muted-foreground/30">
       {/* Title row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
