@@ -26,7 +26,7 @@ interface HorizontalBarChartProps {
 
 const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
 const DIM_OPACITY = 0.4;
-const MAX_LABEL_LENGTH = 18; // Maximum characters before truncation
+const MAX_LABEL_LENGTH = 36; // Maximum characters before truncation
 
 /**
  * Truncate label with ellipsis if too long
