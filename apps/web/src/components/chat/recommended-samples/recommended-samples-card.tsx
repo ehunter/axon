@@ -50,7 +50,7 @@ export function RecommendedSamplesCard({
   const stats = useMemo<SampleStats>(() => {
     const rinValues = samples.map((s) => s.rin).filter((r): r is number => r != null);
     const ageValues = samples.map((s) => s.age).filter((a): a is number => a != null);
-    const priceValues = samples.map((s) => s.price).filter((p): p is number => p != null);
+    const pmiValues = samples.map((s) => s.pmi).filter((p): p is number => p != null);
     const braakValues = samples
       .map((s) => s.braakStage)
       .filter((b): b is string => b != null && b !== "");
@@ -71,7 +71,7 @@ export function RecommendedSamplesCard({
       avgRin: rinValues.length > 0 ? rinValues.reduce((a, b) => a + b, 0) / rinValues.length : null,
       meanAge: ageValues.length > 0 ? ageValues.reduce((a, b) => a + b, 0) / ageValues.length : null,
       medianBraak: medianBraakIndex != null ? braakOrder[medianBraakIndex] : null,
-      avgPrice: priceValues.length > 0 ? priceValues.reduce((a, b) => a + b, 0) / priceValues.length : null,
+      avgPmi: pmiValues.length > 0 ? pmiValues.reduce((a, b) => a + b, 0) / pmiValues.length : null,
     };
   }, [samples]);
 

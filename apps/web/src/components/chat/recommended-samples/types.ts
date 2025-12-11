@@ -47,7 +47,7 @@ export interface SampleStats {
   avgRin: number | null;
   meanAge: number | null;
   medianBraak: string | null;
-  avgPrice: number | null;
+  avgPmi: number | null;
 }
 
 /**
