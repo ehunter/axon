@@ -199,11 +199,27 @@ async def get_cohort(
         # Build response with full sample data
         sample_responses = []
         for cs in cohort_samples:
-            # Look up full sample data
-            sample_result = await db.execute(
-                select(Sample).where(Sample.external_id == cs.sample_external_id)
-            )
-            sample = sample_result.scalar_one_or_none()
+            # Clean the external_id (strip backticks that might have been stored)
+            clean_external_id = cs.sample_external_id.strip("`").strip()
+            
+            # Look up full sample data - try to match by external_id
+            # If source_bank is cached, use it to narrow down
+            sample = None
+            if cs.source_bank:
+                sample_result = await db.execute(
+                    select(Sample).where(
+                        Sample.external_id == clean_external_id,
+                        Sample.source_bank == cs.source_bank
+                    )
+                )
+                sample = sample_result.scalar_one_or_none()
+            
+            # If not found with source_bank, try just external_id (get first match)
+            if sample is None:
+                sample_result = await db.execute(
+                    select(Sample).where(Sample.external_id == clean_external_id).limit(1)
+                )
+                sample = sample_result.scalar_one_or_none()
             
             # Extract Braak stage from raw_data if available
             braak_stage = None
@@ -222,7 +238,7 @@ async def get_cohort(
             
             sample_responses.append(CohortSampleResponse(
                 id=cs.id,
-                external_id=cs.sample_external_id,
+                external_id=clean_external_id,  # Use cleaned ID without backticks
                 sample_group=cs.sample_group,
                 diagnosis=sample.primary_diagnosis if sample else cs.diagnosis,
                 age=sample.donor_age if sample else cs.age,
