@@ -24,7 +24,7 @@ interface HorizontalBarChartProps {
   highlightedCategory?: string | null;
 }
 
-const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
+const HIGHLIGHT_COLOR = "#5BA8BC"; // Brighter teal for highlight
 const DIM_OPACITY = 0.4;
 const MAX_LABEL_LENGTH = 36; // Maximum characters before truncation
 
@@ -39,7 +39,7 @@ function truncateLabel(label: string, maxLength: number = MAX_LABEL_LENGTH): str
 export function HorizontalBarChart({
   data,
   height = 160,
-  accentColor = "hsl(186, 53%, 32%)", // Teal
+  accentColor = "#408AA0",
   highlightedCategory,
 }: HorizontalBarChartProps) {
   if (data.length === 0) {
@@ -120,14 +120,22 @@ export function HorizontalBarChart({
                   />
                 );
               })}
-              {/* Label inside the bar (left side) - truncated */}
+              {/* Label starting at bar left edge, can extend beyond bar */}
               <LabelList
                 dataKey="displayName"
-                position="insideLeft"
-                offset={12}
-                className="fill-[#e0e6ff]"
-                fontSize={13}
-                fontWeight={500}
+                content={({ x, y, height, value }) => (
+                  <text
+                    x={(x as number) + 12}
+                    y={(y as number) + (height as number) / 2}
+                    fill="#e0e6ff"
+                    fontSize={13}
+                    fontWeight={500}
+                    dominantBaseline="middle"
+                    style={{ overflow: "visible" }}
+                  >
+                    {value}
+                  </text>
+                )}
               />
             </Bar>
           </BarChart>
