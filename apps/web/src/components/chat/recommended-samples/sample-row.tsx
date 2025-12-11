@@ -205,7 +205,7 @@ function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | nul
 function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
   // Always show these fields (with fallback to "—")
   const primaryDetails = [
-    { label: "Race", value: sample.race || "—" },
+    { label: "Diagnosis", value: sample.diagnosis || "—" },
     { label: "Type", value: sample.type },
     { label: "RIN", value: sample.rin != null ? sample.rin.toFixed(1) : "—" },
   ];
