@@ -30,7 +30,7 @@ interface StackedDot {
 export function ScaleChart({
   data,
   height = 150,
-  accentColor = "hsl(186, 53%, 32%)", // Teal
+  accentColor = "#408AA0",
   hoveredSampleIndex,
   onHoverSample,
 }: ScaleChartProps) {
