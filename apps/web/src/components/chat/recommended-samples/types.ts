@@ -60,6 +60,9 @@ export interface SampleStats {
   meanAge: number | null;
   medianBraak: string | null;
   avgPmi: number | null;
+  // P-values comparing case vs control groups
+  agePValue: number | null;
+  rinPValue: number | null;
 }
 
 /**

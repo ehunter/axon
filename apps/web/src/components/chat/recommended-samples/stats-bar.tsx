@@ -13,16 +13,35 @@ interface StatsBarProps {
   stats: SampleStats;
 }
 
+/**
+ * Format p-value for display
+ */
+function formatPValue(p: number | null): string {
+  if (p == null) return "—";
+  if (p < 0.001) return "<0.001";
+  if (p < 0.01) return p.toFixed(3);
+  return p.toFixed(2);
+}
+
+/**
+ * Determine if p-value is statistically significant
+ */
+function isSignificant(p: number | null): boolean {
+  return p != null && p < 0.05;
+}
+
 export function StatsBar({ stats }: StatsBarProps) {
-  const statItems = [
+  const statItems: { label: string; value: string; highlight?: boolean; warning?: boolean }[] = [
     {
-      label: "Avg RIN",
-      value: stats.avgRin != null ? stats.avgRin.toFixed(1) : "—",
-      highlight: stats.avgRin != null && stats.avgRin >= 7,
+      label: "Age P-value",
+      value: formatPValue(stats.agePValue),
+      highlight: isSignificant(stats.agePValue),
+      warning: stats.agePValue != null && stats.agePValue < 0.05, // Significant difference may be concerning
     },
     {
-      label: "Mean Age",
-      value: stats.meanAge != null ? `${Math.round(stats.meanAge)}y` : "—",
+      label: "RIN P-value",
+      value: formatPValue(stats.rinPValue),
+      highlight: !isSignificant(stats.rinPValue), // Non-significant is good (groups are balanced)
     },
     {
       label: "Avg PMI",
@@ -32,7 +51,7 @@ export function StatsBar({ stats }: StatsBarProps) {
 
   // Only show Braak if available
   if (stats.medianBraak != null) {
-    statItems.splice(2, 0, {
+    statItems.push({
       label: "Median Braak",
       value: stats.medianBraak,
     });
@@ -51,7 +70,11 @@ export function StatsBar({ stats }: StatsBarProps) {
             <span className="text-sm text-muted-foreground">{item.label}:</span>
             <span
               className={`text-sm font-semibold ${
-                item.highlight ? "text-teal-400" : "text-foreground"
+                item.warning
+                  ? "text-amber-400"
+                  : item.highlight
+                  ? "text-teal-400"
+                  : "text-foreground"
               }`}
             >
               {item.value}
