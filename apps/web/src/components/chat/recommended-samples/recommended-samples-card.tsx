@@ -21,7 +21,8 @@ import { StatsBar } from "./stats-bar";
 import { SampleTable } from "./sample-table";
 import { CardFooter } from "./card-footer";
 import { ConfigForm } from "./config-form";
-import { CheckCircle2 } from "lucide-react";
+import { SaveCohortForm } from "./save-cohort-form";
+import { CheckCircle2, FolderPlus } from "lucide-react";
 
 export function RecommendedSamplesCard({
   samples,
@@ -41,6 +42,10 @@ export function RecommendedSamplesCard({
 
   // Collapsed groups state
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // Save to cohort state
+  const [isSavingCohort, setIsSavingCohort] = useState(false);
+  const [cohortSaveSuccess, setCohortSaveSuccess] = useState<string | null>(null);
 
   // Order configuration
   const [orderConfig, setOrderConfig] = useState<OrderConfig>({
@@ -127,10 +132,50 @@ export function RecommendedSamplesCard({
   }, []);
 
   const handleSaveToCohort = useCallback(() => {
-    if (onSaveToCohort) {
-      onSaveToCohort(Array.from(state.selectedIds));
+    setIsSavingCohort(true);
+  }, []);
+
+  const handleCancelSaveCohort = useCallback(() => {
+    setIsSavingCohort(false);
+  }, []);
+
+  const handleConfirmSaveCohort = useCallback(async (name: string, description?: string) => {
+    try {
+      const selectedSamplesList = samples.filter((s) => state.selectedIds.has(s.id));
+      
+      const response = await fetch("/api/cohorts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          samples: selectedSamplesList.map((s) => ({
+            external_id: s.externalId,
+            sample_group: s.sampleGroup,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save cohort");
+      }
+
+      const data = await response.json();
+      setIsSavingCohort(false);
+      setCohortSaveSuccess(name);
+      
+      // Also call the prop callback if provided
+      if (onSaveToCohort) {
+        onSaveToCohort(Array.from(state.selectedIds));
+      }
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setCohortSaveSuccess(null), 3000);
+    } catch (error) {
+      console.error("Error saving cohort:", error);
+      // TODO: Show error to user
     }
-  }, [onSaveToCohort, state.selectedIds]);
+  }, [samples, state.selectedIds, onSaveToCohort]);
 
   const handleSubmitOrder = useCallback(() => {
     if (onSubmitOrder) {
@@ -200,6 +245,25 @@ export function RecommendedSamplesCard({
         onConfigureOrder={handleConfigureOrder}
         onSaveToCohort={handleSaveToCohort}
       />
+
+      {/* Cohort save success message */}
+      {cohortSaveSuccess && (
+        <div className="flex items-center gap-2 px-5 py-3 bg-teal-900/20 border-t border-teal-700/30">
+          <FolderPlus className="h-4 w-4 text-teal-400" />
+          <span className="text-sm text-teal-200">
+            Saved to cohort: <strong>{cohortSaveSuccess}</strong>
+          </span>
+        </div>
+      )}
+
+      {/* Save to cohort form */}
+      {isSavingCohort && (
+        <SaveCohortForm
+          selectedCount={state.selectedIds.size}
+          onSave={handleConfirmSaveCohort}
+          onCancel={handleCancelSaveCohort}
+        />
+      )}
 
       {/* Inline configuration form (progressive disclosure) */}
       {state.isConfiguring && (

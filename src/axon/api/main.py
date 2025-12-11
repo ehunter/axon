@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from axon.api.routes import chat, samples
+from axon.api.routes import chat, cohorts, samples
 
 app = FastAPI(
     title="Axon Brain Bank API",
@@ -26,6 +26,7 @@ app.add_middleware(
 # Include routers
 app.include_router(samples.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+app.include_router(cohorts.router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -257,6 +257,63 @@ class ConversationSample(Base):
     )
 
 
+class Cohort(Base):
+    """Saved cohorts of samples for research projects."""
+
+    __tablename__ = "cohorts"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    
+    # Optional link to conversation where cohort originated
+    source_conversation_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conversations.id", ondelete="SET NULL")
+    )
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    
+    # Relationships
+    samples: Mapped[list["CohortSample"]] = relationship(
+        "CohortSample", back_populates="cohort", cascade="all, delete-orphan"
+    )
+
+
+class CohortSample(Base):
+    """Samples in a saved cohort."""
+
+    __tablename__ = "cohort_samples"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    cohort_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("cohorts.id", ondelete="CASCADE"), nullable=False
+    )
+    sample_external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    sample_group: Mapped[str] = mapped_column(String(20), nullable=False)  # 'case' or 'control'
+    
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Cached sample info
+    diagnosis: Mapped[str | None] = mapped_column(String(500))
+    age: Mapped[int | None] = mapped_column(Integer)
+    sex: Mapped[str | None] = mapped_column(String(20))
+    source_bank: Mapped[str | None] = mapped_column(String(100))
+    
+    # Relationships
+    cohort: Mapped["Cohort"] = relationship("Cohort", back_populates="samples")
+    
+    __table_args__ = (
+        UniqueConstraint('cohort_id', 'sample_external_id', name='uq_cohort_sample'),
+    )
+
+
 class Paper(Base):
     """Research papers for RAG."""
 

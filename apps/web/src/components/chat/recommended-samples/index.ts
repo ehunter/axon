@@ -11,6 +11,7 @@ export { SampleTable } from "./sample-table";
 export { SampleRow } from "./sample-row";
 export { CardFooter } from "./card-footer";
 export { ConfigForm } from "./config-form";
+export { SaveCohortForm } from "./save-cohort-form";
 
 export type {
   RecommendedSample,
