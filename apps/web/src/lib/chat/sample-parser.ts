@@ -184,9 +184,15 @@ function parseMarkdownTable(
     if (cells.length === 0) return;
 
     const globalIndex = startingId + rowIndex;
+    // Strip backticks from sample ID (markdown formatting)
+    const rawExternalId = columnMap.id !== undefined ? cells[columnMap.id] : null;
+    const cleanExternalId = rawExternalId 
+      ? rawExternalId.replace(/`/g, "").trim() 
+      : `S-${globalIndex + 1}`;
+    
     const sample: RecommendedSample = {
       id: `sample-${globalIndex}`,
-      externalId: columnMap.id !== undefined ? cells[columnMap.id] || `S-${globalIndex + 1}` : `S-${globalIndex + 1}`,
+      externalId: cleanExternalId || `S-${globalIndex + 1}`,
       type: parsePreservationType(columnMap.type !== undefined ? cells[columnMap.type] : ""),
       rin: columnMap.rin !== undefined ? parseFloat(cells[columnMap.rin]) || null : null,
       age: columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).age : null,
