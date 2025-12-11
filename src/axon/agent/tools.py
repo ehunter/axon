@@ -78,6 +78,10 @@ TOOL_DEFINITIONS = [
                     "type": "boolean",
                     "description": "Only return samples without any significant co-pathologies"
                 },
+                "medical_history": {
+                    "type": "string",
+                    "description": "Search non-brain medical history/diagnoses (e.g., 'diabetes', 'hypertension', 'malaria', 'COVID'). Searches the donor's non-neurological conditions."
+                },
                 "limit": {
                     "type": "integer",
                     "description": "Maximum number of samples to return (default 20)"
@@ -429,6 +433,15 @@ class ToolHandler:
         
         if params.get("source_bank"):
             query = query.where(Sample.source_bank.ilike(f"%{params['source_bank']}%"))
+        
+        # Search non-brain medical history in raw_data JSON
+        if params.get("medical_history"):
+            medical_term = params["medical_history"]
+            # Use PostgreSQL JSON extraction with ->> operator
+            from sqlalchemy import text, literal_column
+            query = query.where(
+                literal_column("raw_data->>'Non Brain Diagnosis'").ilike(f"%{medical_term}%")
+            )
         
         # Require valid data for matching (age is always required)
         query = query.where(Sample.donor_age.isnot(None))
