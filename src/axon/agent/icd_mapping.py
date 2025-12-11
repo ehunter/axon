@@ -286,88 +286,238 @@ def extract_copathology_info(
     )
 
 
+def _is_positive_lewy(value: str | None) -> bool:
+    """Check if Lewy body pathology value indicates POSITIVE finding.
+    
+    Examples of NEGATIVE values: "No Lewy Body Pathology", "None", "No Results Reported"
+    Examples of POSITIVE values: "Limbic", "Brainstem", "Neocortical", "Amygdala-predominant"
+    """
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Explicit negative indicators
+    negative_phrases = ["no lewy", "no results", "not assessed", "not evaluated"]
+    if any(neg in val for neg in negative_phrases):
+        return False
+    # Check for exact "none" (not as part of another word)
+    if val == "none":
+        return False
+    return True
+
+
+def _is_positive_tdp43(value: str | None) -> bool:
+    """Check if TDP-43 value indicates POSITIVE finding.
+    
+    Examples of NEGATIVE values: "No", "None", "Not Assessed"
+    Examples of POSITIVE values: "Yes", "Present"
+    """
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Explicit positive indicators
+    if val in ("yes", "present"):
+        return True
+    # Explicit negative indicators
+    negative = ["no", "none", "not assessed", "not evaluated", "no results"]
+    if val in negative:
+        return False
+    if any(neg in val for neg in negative):
+        return False
+    return True
+
+
+def _is_positive_caa(value: str | None) -> bool:
+    """Check if CAA value indicates POSITIVE finding (Grade > 0 or present).
+    
+    Examples of NEGATIVE values: "Grade 0", "None", "No Results Reported"
+    Examples of POSITIVE values: "Grade 1", "Grade 2", "Mild", "Moderate", "Severe"
+    """
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Explicit negative indicators
+    if val in ("none", "no", "grade 0"):
+        return False
+    if "grade 0" in val or "no results" in val or "not assessed" in val:
+        return False
+    # Positive if contains grade > 0 or severity term
+    if any(pos in val for pos in ["grade 1", "grade 2", "grade 3", "grade 4", "mild", "moderate", "severe"]):
+        return True
+    # If it has "grade" but not "grade 0", assume positive
+    if "grade" in val:
+        return True
+    return False
+
+
+def _is_positive_late_nc(value: str | None) -> bool:
+    """Check if LATE-NC value indicates POSITIVE finding in any brain region.
+    
+    LATE-NC format: "Amygdala - Yes, Entorhinal Cortex - No, Hippocampus - No, Neocortex - No"
+    Positive if ANY region shows "Yes"
+    """
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Only positive if "yes" appears (indicating at least one region is affected)
+    return "yes" in val
+
+
+def _is_positive_vascular(value: str | None) -> bool:
+    """Check if vascular/small vessel disease value indicates POSITIVE finding.
+    
+    Examples of NEGATIVE values: "None", "No Results Reported"
+    Examples of POSITIVE values: "Mild", "Moderate", "Severe"
+    """
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Explicit negative indicators
+    negative = ["none", "no results", "not assessed", "not evaluated"]
+    if val in negative:
+        return False
+    if any(neg in val for neg in negative):
+        return False
+    # Positive for severity terms
+    return any(pos in val for pos in ["mild", "moderate", "severe", "present"])
+
+
+def _is_positive_als_tdp(value: str | None) -> bool:
+    """Check if ALS-TDP value indicates POSITIVE finding."""
+    if not value:
+        return False
+    val = value.lower().strip()
+    if not val:
+        return False
+    # Explicit negative indicators
+    negative = ["no", "none", "not assessed", "not evaluated", "no results"]
+    if val in negative:
+        return False
+    if any(neg in val for neg in negative):
+        return False
+    return True
+
+
 def build_copathology_summary(
     icd_copathologies: list[dict],
     neuropath_metrics: dict[str, str],
 ) -> str:
-    """Build a human-readable summary of co-pathologies.
+    """Build a human-readable summary of TRUE co-pathologies only.
+    
+    IMPORTANT: This function only reports TRUE co-pathologies, NOT AD staging metrics.
+    - AD Staging (NOT co-pathologies): ADNC, Thal Phase, CERAD, A/B/C scores
+    - TRUE Co-pathologies: Lewy body, CAA, TDP-43, LATE-NC, Vascular, ALS-TDP
     
     Args:
         icd_copathologies: List of ICD-based co-pathologies
         neuropath_metrics: Dict of neuropathology metrics
         
     Returns:
-        Human-readable summary string
+        Human-readable summary string (e.g., "Lewy body (Limbic), CAA" or "None")
     """
-    parts = []
+    positive_copaths = []
     
-    # Add significant co-pathologies from ICD codes
-    copaths = [c for c in icd_copathologies if c.get("is_copathology")]
-    if copaths:
-        copath_names = [c["name"] for c in copaths]
-        parts.append(f"Co-pathologies: {', '.join(copath_names)}")
+    # 1. Check ICD-based co-pathologies (already filtered by is_copathology flag)
+    for copath in icd_copathologies:
+        if copath.get("is_copathology"):
+            # Don't duplicate if we'll also detect from neuropath_metrics
+            category = copath.get("category", "")
+            # Skip categories we'll detect from metrics (avoids double-counting)
+            if category not in ["Lewy", "CAA", "Vascular"]:
+                positive_copaths.append(copath["name"])
     
-    # Add key neuropathology metrics
-    key_metrics = []
+    # 2. Check neuropathology metrics for POSITIVE findings only
     
-    if "ADNC" in neuropath_metrics:
-        key_metrics.append(f"ADNC: {neuropath_metrics['ADNC']}")
-    
+    # Lewy body pathology
     if "Lewy_Pathology" in neuropath_metrics:
-        key_metrics.append(f"Lewy: {neuropath_metrics['Lewy_Pathology']}")
+        lewy_val = neuropath_metrics["Lewy_Pathology"]
+        if _is_positive_lewy(lewy_val):
+            positive_copaths.append(f"Lewy body ({lewy_val})")
     
+    # Cerebral Amyloid Angiopathy
     if "CAA" in neuropath_metrics:
-        key_metrics.append(f"CAA: {neuropath_metrics['CAA']}")
+        caa_val = neuropath_metrics["CAA"]
+        if _is_positive_caa(caa_val):
+            positive_copaths.append(f"CAA ({caa_val})")
     
+    # TDP-43 Proteinopathy
     if "TDP-43" in neuropath_metrics:
-        key_metrics.append(f"TDP-43: {neuropath_metrics['TDP-43']}")
+        tdp_val = neuropath_metrics["TDP-43"]
+        if _is_positive_tdp43(tdp_val):
+            positive_copaths.append("TDP-43")
     
+    # LATE-NC (Limbic-predominant Age-related TDP-43 Encephalopathy)
     if "LATE-NC" in neuropath_metrics:
-        key_metrics.append(f"LATE-NC: {neuropath_metrics['LATE-NC']}")
+        late_val = neuropath_metrics["LATE-NC"]
+        if _is_positive_late_nc(late_val):
+            positive_copaths.append("LATE-NC")
     
-    if "Thal_Phase" in neuropath_metrics:
-        key_metrics.append(f"Thal: {neuropath_metrics['Thal_Phase']}")
+    # Small Vessel Disease / Vascular
+    if "Small_Vessel_Disease" in neuropath_metrics:
+        svd_val = neuropath_metrics["Small_Vessel_Disease"]
+        if _is_positive_vascular(svd_val):
+            positive_copaths.append(f"Vascular ({svd_val})")
     
-    if "CERAD" in neuropath_metrics:
-        key_metrics.append(f"CERAD: {neuropath_metrics['CERAD']}")
+    # ALS-TDP
+    if "ALS-TDP" in neuropath_metrics:
+        als_val = neuropath_metrics["ALS-TDP"]
+        if _is_positive_als_tdp(als_val):
+            positive_copaths.append("ALS-TDP")
     
-    if key_metrics:
-        parts.append("; ".join(key_metrics))
+    # Return summary
+    if positive_copaths:
+        return ", ".join(positive_copaths)
     
-    if parts:
-        return " | ".join(parts)
-    
-    return "No co-pathology data recorded"
+    return "None"
 
 
 def has_copathology(copathology_info: CopathologyInfo, categories: list[str]) -> bool:
-    """Check if sample has any of the specified co-pathology categories.
+    """Check if sample has any of the specified co-pathology categories with POSITIVE findings.
     
     Args:
         copathology_info: The extracted co-pathology info
         categories: List of category names to check (e.g., ["Lewy", "CAA"])
         
     Returns:
-        True if sample has any of the specified co-pathologies
+        True if sample has any of the specified co-pathologies with POSITIVE findings
     """
     # Check ICD-based co-pathologies
     for copath in copathology_info.icd_copathologies:
-        if copath.get("category") in categories:
+        if copath.get("category") in categories and copath.get("is_copathology"):
             return True
     
-    # Check neuropathology metrics
-    category_metric_map = {
-        "Lewy": ["Lewy_Pathology"],
-        "CAA": ["CAA"],
-        "TDP-43": ["TDP-43", "LATE-NC", "ALS-TDP"],
-        "Vascular": ["Small_Vessel_Disease"],
-    }
+    # Check neuropathology metrics - only if they indicate POSITIVE findings
+    metrics = copathology_info.neuropath_metrics
     
     for category in categories:
-        if category in category_metric_map:
-            for metric in category_metric_map[category]:
-                if metric in copathology_info.neuropath_metrics:
-                    return True
+        if category == "Lewy":
+            if "Lewy_Pathology" in metrics and _is_positive_lewy(metrics["Lewy_Pathology"]):
+                return True
+        elif category == "CAA":
+            if "CAA" in metrics and _is_positive_caa(metrics["CAA"]):
+                return True
+        elif category in ("TDP-43", "FTD"):
+            if "TDP-43" in metrics and _is_positive_tdp43(metrics["TDP-43"]):
+                return True
+            if "LATE-NC" in metrics and _is_positive_late_nc(metrics["LATE-NC"]):
+                return True
+            if "ALS-TDP" in metrics and _is_positive_als_tdp(metrics["ALS-TDP"]):
+                return True
+        elif category == "Vascular":
+            if "Small_Vessel_Disease" in metrics and _is_positive_vascular(metrics["Small_Vessel_Disease"]):
+                return True
+        elif category == "ALS":
+            if "ALS-TDP" in metrics and _is_positive_als_tdp(metrics["ALS-TDP"]):
+                return True
     
     return False
 
