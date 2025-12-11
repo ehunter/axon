@@ -33,13 +33,13 @@ function isSignificant(p: number | null): boolean {
 export function StatsBar({ stats }: StatsBarProps) {
   const statItems: { label: string; value: string; highlight?: boolean; warning?: boolean }[] = [
     {
-      label: "Age P-value",
+      label: "P(Age)",
       value: formatPValue(stats.agePValue),
       highlight: isSignificant(stats.agePValue),
       warning: stats.agePValue != null && stats.agePValue < 0.05, // Significant difference may be concerning
     },
     {
-      label: "RIN P-value",
+      label: "P(RIN)",
       value: formatPValue(stats.rinPValue),
       highlight: !isSignificant(stats.rinPValue), // Non-significant is good (groups are balanced)
     },
