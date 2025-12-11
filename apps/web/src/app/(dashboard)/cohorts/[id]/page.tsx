@@ -18,6 +18,7 @@ interface APICohortSample {
   external_id: string;
   sample_group: string;
   diagnosis: string | null;
+  neuropathology_diagnosis: string | null;
   age: number | null;
   sex: string | null;
   source_bank: string | null;
@@ -115,6 +116,7 @@ export default function CohortDetailPage() {
       age: s.age,
       sex: s.sex as "Male" | "Female" | null,
       race: s.race,
+      neuropathologyDiagnosis: s.neuropathology_diagnosis,
       primaryDiagnosis: s.diagnosis,
       diagnoses: s.diagnoses || [],
       braakStage: s.braak_stage,

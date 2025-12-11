@@ -24,7 +24,8 @@ export interface CohortSample {
   race: string | null;
   
   // Clinical
-  primaryDiagnosis: string | null;
+  neuropathologyDiagnosis: string | null; // Pathologically confirmed diagnosis
+  primaryDiagnosis: string | null; // Clinical diagnosis
   diagnoses: string[]; // Can have multiple (primary + co-pathologies)
   braakStage: string | null; // Roman numerals: I, II, III, IV, V, VI
   
@@ -155,6 +156,16 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
       Case: "#408AA0",
       Control: "#8B95A5",
     },
+  },
+  {
+    id: "neuropathologyDiagnosis",
+    label: "Neuropathology Diagnosis",
+    field: "neuropathologyDiagnosis",
+    visualization: "horizontal-bar",
+    cellType: "badge",
+    minWidth: 200,
+    maxWidth: 320,
+    dataType: "categorical",
   },
   {
     id: "diagnoses",
