@@ -73,11 +73,9 @@ export function SampleRow({
           </span>
         </td>
 
-        {/* Co-Pathologies */}
+        {/* Type (Case/Control) */}
         <td className="px-3 py-1.5">
-          <span className="text-sm text-foreground">
-            {sample.coPathologies || "—"}
-          </span>
+          <SampleTypeBadge type={sample.sampleGroup} />
         </td>
 
         {/* Expand chevron */}
@@ -145,7 +143,26 @@ function Checkbox({
 }
 
 /**
- * Type badge (Frozen/FFPE)
+ * Sample Type badge (Case/Control)
+ */
+function SampleTypeBadge({ type }: { type: "case" | "control" }) {
+  const isCase = type === "case";
+  
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${
+        isCase
+          ? "bg-amber-900/40 border-amber-700/50 text-amber-200"
+          : "bg-teal-900/40 border-teal-700/50 text-teal-200"
+      }`}
+    >
+      {isCase ? "Case" : "Control"}
+    </span>
+  );
+}
+
+/**
+ * Type badge (Frozen/FFPE) - used in expanded details
  */
 function TypeBadge({ type }: { type: RecommendedSample["type"] }) {
   const config = {
@@ -212,6 +229,7 @@ function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
 
   // Only show these if they have values
   const optionalDetails = [
+    { label: "Co-Pathologies", value: sample.coPathologies && sample.coPathologies !== "None" ? sample.coPathologies : null },
     { label: "Price", value: sample.price != null ? `$${sample.price}` : null },
     { label: "Tissue Region", value: sample.details?.tissueRegion },
     { label: "Collection Date", value: sample.details?.collectionDate },

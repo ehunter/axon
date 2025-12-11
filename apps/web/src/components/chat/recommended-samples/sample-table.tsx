@@ -89,7 +89,7 @@ export function SampleTable({
               PMI
             </th>
             <th className="px-3 py-2 text-sm font-semibold text-foreground">
-              Co-Pathologies
+              Type
             </th>
             {/* Expand column */}
             <th className="w-12 px-3 py-2" />
