@@ -63,6 +63,7 @@ export interface SampleStats {
   // P-values comparing case vs control groups
   agePValue: number | null;
   rinPValue: number | null;
+  pmiPValue: number | null;
 }
 
 /**

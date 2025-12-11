@@ -213,6 +213,10 @@ export function RecommendedSamplesCard({
     const controlRins = controlSamples.map((s) => s.rin).filter((r): r is number => r != null);
     const rinPValue = calculateTTestPValue(caseRins, controlRins);
 
+    const casePmis = caseSamples.map((s) => s.pmi).filter((p): p is number => p != null);
+    const controlPmis = controlSamples.map((s) => s.pmi).filter((p): p is number => p != null);
+    const pmiPValue = calculateTTestPValue(casePmis, controlPmis);
+
     return {
       count: samples.length,
       avgRin: rinValues.length > 0 ? rinValues.reduce((a, b) => a + b, 0) / rinValues.length : null,
@@ -221,6 +225,7 @@ export function RecommendedSamplesCard({
       avgPmi: pmiValues.length > 0 ? pmiValues.reduce((a, b) => a + b, 0) / pmiValues.length : null,
       agePValue,
       rinPValue,
+      pmiPValue,
     };
   }, [samples]);
 
