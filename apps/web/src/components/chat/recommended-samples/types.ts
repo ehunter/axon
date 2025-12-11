@@ -19,6 +19,8 @@ export interface RecommendedSample {
   sourceBank: string;
   pmi: number | null;
   coPathologies: string | null;
+  /** Whether this is a case or control sample */
+  sampleGroup: "case" | "control";
   // Extended details for accordion
   details?: {
     pathologyNotes?: string;
@@ -27,6 +29,16 @@ export interface RecommendedSample {
     collectionDate?: string;
     additionalMetadata?: Record<string, unknown>;
   };
+}
+
+/**
+ * A group of samples (cases or controls)
+ */
+export interface SampleGroup {
+  id: "case" | "control";
+  label: string;
+  samples: RecommendedSample[];
+  isCollapsed?: boolean;
 }
 
 /**

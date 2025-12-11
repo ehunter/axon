@@ -3,9 +3,10 @@
  *
  * Detects and extracts sample recommendation data from agent messages.
  * Converts markdown tables to structured data for the interactive widget.
+ * Supports multiple tables (cases and controls) in a single message.
  */
 
-import { RecommendedSample, ActiveFilter } from "@/components/chat/recommended-samples/types";
+import { RecommendedSample, ActiveFilter, SampleGroup } from "@/components/chat/recommended-samples/types";
 
 /**
  * Result of parsing an agent message for sample recommendations
@@ -13,6 +14,7 @@ import { RecommendedSample, ActiveFilter } from "@/components/chat/recommended-s
 export interface ParsedSampleData {
   hasSamples: boolean;
   samples: RecommendedSample[];
+  groups: SampleGroup[];
   filters: ActiveFilter[];
   beforeTable: string;
   afterTable: string;
@@ -25,43 +27,92 @@ export interface ParsedSampleData {
 const SAMPLE_TABLE_PATTERN = /\|[^\n]*(?:Sample\s*ID|External\s*ID|Subject\s*ID|ID)[^\n]*\|[\s\S]*?\n(?:\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)+)/gi;
 
 /**
- * Pattern to extract filter context from the message
+ * Pattern to detect section headers before tables
  */
-const FILTER_PATTERNS = [
-  /(?:Braak|Braak\s*Stage)\s*[><=]+\s*(\w+)/gi,
-  /(?:RIN|RIN\s*Score)\s*[><=]+\s*([\d.]+)/gi,
-  /(?:Age)\s*[><=]+\s*(\d+)/gi,
-  /(?:diagnosis|diagnosed\s*with)\s*[:\s]*([A-Za-z'\s]+?)(?:\.|,|$)/gi,
-];
+const SECTION_HEADER_PATTERN = /\*\*([^*]+(?:Sample|Control)[^*]*)\*\*\s*:?\s*$/im;
 
 /**
  * Parse an agent message to extract sample recommendations
+ * Handles multiple tables (cases and controls)
  */
 export function parseSampleRecommendations(text: string): ParsedSampleData {
   const result: ParsedSampleData = {
     hasSamples: false,
     samples: [],
+    groups: [],
     filters: [],
     beforeTable: text,
     afterTable: "",
   };
 
-  // Find sample table in the message
-  const tableMatch = text.match(SAMPLE_TABLE_PATTERN);
-  if (!tableMatch) {
+  // Find ALL sample tables in the message
+  const tableMatches: RegExpMatchArray[] = [];
+  let match;
+  const tableRegex = new RegExp(SAMPLE_TABLE_PATTERN.source, 'gi');
+  while ((match = tableRegex.exec(text)) !== null) {
+    tableMatches.push(match);
+  }
+
+  if (tableMatches.length === 0) {
     return result;
   }
 
-  // Extract text before and after the table
-  const tableIndex = text.indexOf(tableMatch[0]);
-  result.beforeTable = text.slice(0, tableIndex).trim();
-  result.afterTable = text.slice(tableIndex + tableMatch[0].length).trim();
+  // Extract text before first table and after last table
+  const firstTableIndex = text.indexOf(tableMatches[0][0]);
+  const lastMatch = tableMatches[tableMatches.length - 1];
+  const lastTableEndIndex = text.indexOf(lastMatch[0]) + lastMatch[0].length;
+  
+  result.beforeTable = text.slice(0, firstTableIndex).trim();
+  result.afterTable = text.slice(lastTableEndIndex).trim();
 
-  // Parse the table
-  const samples = parseMarkdownTable(tableMatch[0]);
-  if (samples.length > 0) {
+  // Parse each table and determine its group (case/control)
+  let sampleIdCounter = 0;
+  const casesSamples: RecommendedSample[] = [];
+  const controlsSamples: RecommendedSample[] = [];
+
+  tableMatches.forEach((tableMatch, tableIndex) => {
+    const tableStartIndex = text.indexOf(tableMatch[0]);
+    
+    // Look for section header before this table
+    const textBeforeTable = text.slice(0, tableStartIndex);
+    const lastLines = textBeforeTable.split('\n').slice(-5).join('\n');
+    
+    // Determine if this is a control or case table
+    const isControl = /control/i.test(lastLines);
+    const sampleGroup: "case" | "control" = isControl ? "control" : "case";
+    
+    // Parse the table
+    const samples = parseMarkdownTable(tableMatch[0], sampleGroup, sampleIdCounter);
+    sampleIdCounter += samples.length;
+    
+    if (isControl) {
+      controlsSamples.push(...samples);
+    } else {
+      casesSamples.push(...samples);
+    }
+  });
+
+  // Combine all samples
+  result.samples = [...casesSamples, ...controlsSamples];
+  
+  // Create groups
+  if (casesSamples.length > 0) {
+    result.groups.push({
+      id: "case",
+      label: "Case Samples",
+      samples: casesSamples,
+    });
+  }
+  if (controlsSamples.length > 0) {
+    result.groups.push({
+      id: "control",
+      label: "Control Samples",
+      samples: controlsSamples,
+    });
+  }
+
+  if (result.samples.length > 0) {
     result.hasSamples = true;
-    result.samples = samples;
   }
 
   // Extract filters from context
@@ -73,7 +124,11 @@ export function parseSampleRecommendations(text: string): ParsedSampleData {
 /**
  * Parse a markdown table into sample objects
  */
-function parseMarkdownTable(tableText: string): RecommendedSample[] {
+function parseMarkdownTable(
+  tableText: string,
+  sampleGroup: "case" | "control" = "case",
+  startingId: number = 0
+): RecommendedSample[] {
   const lines = tableText.trim().split("\n").filter((line) => line.trim());
   if (lines.length < 3) return []; // Need header, separator, and at least one data row
 
@@ -128,9 +183,10 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
 
     if (cells.length === 0) return;
 
+    const globalIndex = startingId + rowIndex;
     const sample: RecommendedSample = {
-      id: `sample-${rowIndex}`,
-      externalId: columnMap.id !== undefined ? cells[columnMap.id] || `S-${rowIndex + 1}` : `S-${rowIndex + 1}`,
+      id: `sample-${globalIndex}`,
+      externalId: columnMap.id !== undefined ? cells[columnMap.id] || `S-${globalIndex + 1}` : `S-${globalIndex + 1}`,
       type: parsePreservationType(columnMap.type !== undefined ? cells[columnMap.type] : ""),
       rin: columnMap.rin !== undefined ? parseFloat(cells[columnMap.rin]) || null : null,
       age: columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).age : null,
@@ -142,6 +198,7 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
       sourceBank: columnMap.source !== undefined ? cells[columnMap.source] || "Unknown" : "Unknown",
       pmi: columnMap.pmi !== undefined ? parsePmi(cells[columnMap.pmi]) : null,
       coPathologies: columnMap.coPathologies !== undefined ? cells[columnMap.coPathologies] || null : null,
+      sampleGroup,
     };
 
     samples.push(sample);

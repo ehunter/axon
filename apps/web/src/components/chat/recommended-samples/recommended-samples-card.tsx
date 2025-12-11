@@ -39,6 +39,9 @@ export function RecommendedSamplesCard({
     orderSuccess: false,
   });
 
+  // Collapsed groups state
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
   // Order configuration
   const [orderConfig, setOrderConfig] = useState<OrderConfig>({
     format: "slide",
@@ -100,6 +103,18 @@ export function RecommendedSamplesCard({
       ...prev,
       expandedRowId: prev.expandedRowId === id ? null : id,
     }));
+  }, []);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
   }, []);
 
   // Action handlers
@@ -171,9 +186,11 @@ export function RecommendedSamplesCard({
         samples={samples}
         selectedIds={state.selectedIds}
         expandedRowId={state.expandedRowId}
+        collapsedGroups={collapsedGroups}
         onSelectAll={handleSelectAll}
         onSelectOne={handleSelectOne}
         onExpandRow={handleExpandRow}
+        onToggleGroup={handleToggleGroup}
       />
 
       {/* Footer with selection count and actions */}
