@@ -86,7 +86,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2 px-2 flex-1">
           <Brain className="h-5 w-5 text-sidebar-muted" />
           <span className="text-[21px] font-medium text-sidebar-muted tracking-normal">
-            Axon
+            Oskar
           </span>
         </div>
         <button
