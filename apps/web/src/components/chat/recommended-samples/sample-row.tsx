@@ -28,7 +28,7 @@ export function SampleRow({
     <>
       {/* Main row */}
       <tr
-        className="border-b border-muted-foreground/30 transition-colors cursor-pointer bg-[#212636] hover:bg-muted/50"
+        className="border-b border-muted-foreground/30 transition-colors cursor-pointer bg-muted/50 hover:bg-muted/70"
         onClick={onExpand}
       >
         {/* Checkbox */}
