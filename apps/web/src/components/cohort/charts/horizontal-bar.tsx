@@ -26,6 +26,15 @@ interface HorizontalBarChartProps {
 
 const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
 const DIM_OPACITY = 0.4;
+const MAX_LABEL_LENGTH = 18; // Maximum characters before truncation
+
+/**
+ * Truncate label with ellipsis if too long
+ */
+function truncateLabel(label: string, maxLength: number = MAX_LABEL_LENGTH): string {
+  if (label.length <= maxLength) return label;
+  return label.slice(0, maxLength - 1).trim() + "…";
+}
 
 export function HorizontalBarChart({
   data,
@@ -46,8 +55,10 @@ export function HorizontalBarChart({
   const maxValue = Math.max(...rawData.map((d) => d.value));
 
   // Use actual values for bar widths (no normalization)
+  // Keep original name for tooltip, use truncated for display
   const chartData = rawData.map((item) => ({
     name: item.label,
+    displayName: truncateLabel(item.label),
     value: item.value,
   }));
 
@@ -109,9 +120,9 @@ export function HorizontalBarChart({
                   />
                 );
               })}
-              {/* Label inside the bar (left side) */}
+              {/* Label inside the bar (left side) - truncated */}
               <LabelList
-                dataKey="name"
+                dataKey="displayName"
                 position="insideLeft"
                 offset={12}
                 className="fill-[#e0e6ff]"
