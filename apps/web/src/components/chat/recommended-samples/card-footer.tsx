@@ -6,7 +6,7 @@
 
 "use client";
 
-import { FolderPlus, ShoppingCart } from "lucide-react";
+import { FolderPlus, Send } from "lucide-react";
 
 interface CardFooterProps {
   selectedCount: number;
@@ -56,7 +56,7 @@ export function CardFooter({
           Save to Cohorts
         </button>
 
-        {/* Configure Order - primary action */}
+        {/* Request Samples - primary action */}
         <button
           onClick={onConfigureOrder}
           disabled={!hasSelection || isConfiguring}
@@ -70,8 +70,8 @@ export function CardFooter({
             }
           `}
         >
-          <ShoppingCart className="h-4 w-4" />
-          {isConfiguring ? "Configuring..." : `Configure Order${hasSelection ? ` (${selectedCount})` : ""}`}
+          <Send className="h-4 w-4" />
+          {isConfiguring ? "Configuring..." : `Request Samples${hasSelection ? ` (${selectedCount})` : ""}`}
         </button>
       </div>
     </div>
