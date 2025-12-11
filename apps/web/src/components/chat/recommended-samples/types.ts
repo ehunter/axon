@@ -12,6 +12,7 @@ export interface RecommendedSample {
   rin: number | null;
   age: number | null;
   sex: "Male" | "Female" | null;
+  race: string | null;
   diagnosis: string;
   braakStage: string | null;
   price: number | null;
