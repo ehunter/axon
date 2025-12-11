@@ -41,12 +41,11 @@ export function NumericCell({
 
   return (
     <div
-      className={`flex items-center h-10 px-3 transition-colors cursor-default ${
+      className={`flex items-center min-h-10 h-full px-3 py-2 transition-colors cursor-default ${
         isHovered
           ? "bg-muted hover:bg-muted-foreground/20"
           : "bg-secondary hover:bg-muted/70"
       }`}
-      style={{ width, minWidth: width }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

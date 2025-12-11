@@ -69,40 +69,49 @@ export function SampleDataTable({
         )}
       </div>
 
-      {/* Table */}
+      {/* Table using CSS Grid for proper row alignment */}
       <div className="overflow-x-auto rounded-xl">
-        <div className="flex gap-px min-w-max">
+        <div 
+          className="grid gap-px min-w-max"
+          style={{ 
+            gridTemplateColumns: columns.map(col => `${col.width || 150}px`).join(' ')
+          }}
+        >
+          {/* Header row */}
           {columns.map((column) => {
-            // Only pass hover state to the column that owns it
             const isHoveredColumn = hoverState?.columnId === column.id;
             const hoveredSampleIndex = isHoveredColumn ? hoverState.sampleIndex : null;
             
             return (
-              <div key={column.id} className="flex flex-col gap-px">
-                {/* Header cell with chart */}
-                <TableHeaderCell
-                  column={column}
-                  samples={samples}
-                  hoveredSampleIndex={hoveredSampleIndex}
-                  onHoverSample={(index) =>
-                    setHoverState(index !== null ? { sampleIndex: index, columnId: column.id } : null)
-                  }
-                />
-                
-                {/* Data rows */}
-                {samples.map((sample, rowIndex) => (
-                  <DataCell
-                    key={`${column.id}-${rowIndex}`}
-                    column={column}
-                    sample={sample}
-                    isHovered={isHoveredColumn && hoverState.sampleIndex === rowIndex}
-                    onMouseEnter={() => setHoverState({ sampleIndex: rowIndex, columnId: column.id })}
-                    onMouseLeave={() => setHoverState(null)}
-                  />
-                ))}
-              </div>
+              <TableHeaderCell
+                key={`header-${column.id}`}
+                column={column}
+                samples={samples}
+                hoveredSampleIndex={hoveredSampleIndex}
+                onHoverSample={(index) =>
+                  setHoverState(index !== null ? { sampleIndex: index, columnId: column.id } : null)
+                }
+              />
             );
           })}
+          
+          {/* Data rows - render row by row for proper height alignment */}
+          {samples.map((sample, rowIndex) =>
+            columns.map((column) => {
+              const isHoveredColumn = hoverState?.columnId === column.id;
+              
+              return (
+                <DataCell
+                  key={`${column.id}-${rowIndex}`}
+                  column={column}
+                  sample={sample}
+                  isHovered={isHoveredColumn && hoverState.sampleIndex === rowIndex}
+                  onMouseEnter={() => setHoverState({ sampleIndex: rowIndex, columnId: column.id })}
+                  onMouseLeave={() => setHoverState(null)}
+                />
+              );
+            })
+          )}
         </div>
       </div>
     </div>
