@@ -33,9 +33,9 @@ export function SampleTable({
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="bg-[#212636] text-left">
+          <tr className="bg-[#212636] text-left border-b border-muted-foreground/30">
             {/* Checkbox column */}
-            <th className="w-12 px-4 py-3">
+            <th className="w-12 px-3 py-2">
               <Checkbox
                 checked={allSelected}
                 indeterminate={someSelected}
@@ -43,26 +43,26 @@ export function SampleTable({
                 aria-label="Select all samples"
               />
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               Sample ID
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               Source
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               Age/Sex
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               RIN
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               PMI
             </th>
-            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+            <th className="px-3 py-2 text-sm font-semibold text-foreground">
               Co-Pathologies
             </th>
             {/* Expand column */}
-            <th className="w-12 px-4 py-3" />
+            <th className="w-12 px-3 py-2" />
           </tr>
         </thead>
         <tbody>

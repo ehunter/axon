@@ -137,7 +137,7 @@ export function RecommendedSamplesCard({
   // Success state
   if (state.orderSuccess) {
     return (
-      <div className="bg-surface rounded-xl border border-border overflow-hidden">
+      <div className="bg-transparent rounded-xl border border-muted-foreground/30 overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 bg-teal-900/20 border-b border-teal-700/30">
           <CheckCircle2 className="h-5 w-5 text-teal-400" />
           <div>
@@ -154,7 +154,7 @@ export function RecommendedSamplesCard({
   }
 
   return (
-    <div className="bg-surface rounded-xl border border-border overflow-hidden">
+    <div className="bg-transparent rounded-xl border border-muted-foreground/30 overflow-hidden">
       {/* Header with title and filter chips */}
       <CardHeader
         title={title}

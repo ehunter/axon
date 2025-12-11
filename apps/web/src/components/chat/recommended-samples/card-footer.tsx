@@ -24,7 +24,7 @@ export function CardFooter({
   const hasSelection = selectedCount > 0;
 
   return (
-    <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-surface sticky bottom-0">
+    <div className="flex items-center justify-between px-5 py-3 border-t border-muted-foreground/30 bg-[#212636] sticky bottom-0">
       {/* Selection count */}
       <div className="flex items-center gap-2">
         <span
