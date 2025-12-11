@@ -25,8 +25,8 @@ export function StatsBar({ stats }: StatsBarProps) {
       value: stats.meanAge != null ? `${Math.round(stats.meanAge)}y` : "—",
     },
     {
-      label: "Avg Price",
-      value: stats.avgPrice != null ? `$${Math.round(stats.avgPrice)}` : "—",
+      label: "Avg PMI",
+      value: stats.avgPmi != null ? `${stats.avgPmi.toFixed(1)}h` : "—",
     },
   ];
 
