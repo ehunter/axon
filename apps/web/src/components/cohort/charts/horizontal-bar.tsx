@@ -95,6 +95,7 @@ export function HorizontalBarChart({
               radius={[0, 4, 4, 0]}
               fill={accentColor}
               barSize={rowHeight}
+              isAnimationActive={false}
             >
               {/* Individual bar colors for highlighting */}
               {chartData.map((entry, index) => {
