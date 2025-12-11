@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useConversations } from "@/hooks/use-conversations";
+import { useCohorts } from "@/hooks/use-cohorts";
 import { useState } from "react";
 
 // Main navigation items
@@ -32,18 +33,12 @@ const bottomNavigation = [
   { name: "About", href: "/about", icon: HelpCircle },
 ];
 
-// Mock cohorts data - will be replaced with API call later
-const cohorts = [
-  { id: "1", name: "RNA Seq - March 2025" },
-  { id: "2", name: "RNA-seq - March 2024" },
-  { id: "3", name: "RNA Seq" },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, signOut } = useAuth();
   const { conversations, isLoading: conversationsLoading } = useConversations({ limit: 5 });
+  const { cohorts, isLoading: cohortsLoading } = useCohorts(5);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Get current conversation ID from URL
@@ -184,19 +179,37 @@ export function Sidebar() {
             <p className="text-[0.9rem] text-sidebar-foreground">Cohorts</p>
           </div>
           <div className="space-y-1 mt-1">
-            {cohorts.map((cohort) => (
-              <button
-                key={cohort.id}
-                className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full text-left"
-              >
-                <Folder className="h-4 w-4 shrink-0" />
-                <span className="truncate">{cohort.name}</span>
-              </button>
-            ))}
-            <button className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors w-full text-left opacity-70">
-              <MoreHorizontal className="h-4 w-4 shrink-0" />
-              <span>More</span>
-            </button>
+            {cohortsLoading ? (
+              <div className="px-3 py-2 text-base text-sidebar-foreground/50">
+                Loading...
+              </div>
+            ) : cohorts.length === 0 ? (
+              <div className="px-3 py-2 text-base text-sidebar-foreground/50">
+                No saved cohorts
+              </div>
+            ) : (
+              <>
+                {cohorts.map((cohort) => (
+                  <Link
+                    key={cohort.id}
+                    href={`/cohorts/${cohort.id}`}
+                    className="flex items-center gap-2 h-8 px-3 py-1 rounded-md text-base text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full text-left"
+                  >
+                    <Folder className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{cohort.name}</span>
+                  </Link>
+                ))}
+                {cohorts.length >= 5 && (
+                  <Link
+                    href="/cohorts"
+                    className="flex items-center gap-2 h-8 pl-2 pr-8 py-2 rounded-md text-base text-sidebar-foreground/70 hover:bg-sidebar-accent transition-colors w-full text-left opacity-70"
+                  >
+                    <MoreHorizontal className="h-4 w-4 shrink-0" />
+                    <span>View All</span>
+                  </Link>
+                )}
+              </>
+            )}
           </div>
         </div>
       </nav>
