@@ -41,6 +41,13 @@ class CohortSampleResponse(BaseModel):
     age: Optional[int]
     sex: Optional[str]
     source_bank: Optional[str]
+    # Extended fields from Sample table
+    race: Optional[str] = None
+    braak_stage: Optional[str] = None
+    rin: Optional[float] = None
+    pmi: Optional[float] = None
+    ph: Optional[float] = None
+    diagnoses: list[str] = []
 
 
 class CohortResponse(BaseModel):
@@ -170,7 +177,7 @@ async def get_cohort(
     cohort_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a cohort with all samples."""
+    """Get a cohort with all samples including full sample data."""
     try:
         result = await db.execute(
             select(Cohort).where(Cohort.id == cohort_id)
@@ -180,36 +187,65 @@ async def get_cohort(
         if not cohort:
             raise HTTPException(status_code=404, detail="Cohort not found")
 
-        # Get samples
+        # Get cohort samples
         samples_result = await db.execute(
             select(CohortSample).where(CohortSample.cohort_id == cohort_id)
         )
-        samples = samples_result.scalars().all()
+        cohort_samples = samples_result.scalars().all()
         
-        case_count = sum(1 for s in samples if s.sample_group == "case")
-        control_count = sum(1 for s in samples if s.sample_group == "control")
+        case_count = sum(1 for s in cohort_samples if s.sample_group == "case")
+        control_count = sum(1 for s in cohort_samples if s.sample_group == "control")
+
+        # Build response with full sample data
+        sample_responses = []
+        for cs in cohort_samples:
+            # Look up full sample data
+            sample_result = await db.execute(
+                select(Sample).where(Sample.external_id == cs.sample_external_id)
+            )
+            sample = sample_result.scalar_one_or_none()
+            
+            # Extract Braak stage from raw_data if available
+            braak_stage = None
+            diagnoses = []
+            if sample and sample.raw_data:
+                braak_stage = sample.raw_data.get("braak_stage")
+                # Build diagnoses list from primary + secondary
+                if sample.primary_diagnosis:
+                    diagnoses.append(sample.primary_diagnosis)
+                if sample.secondary_diagnoses:
+                    for sd in sample.secondary_diagnoses:
+                        if isinstance(sd, dict) and sd.get("diagnosis"):
+                            diagnoses.append(sd["diagnosis"])
+                        elif isinstance(sd, str):
+                            diagnoses.append(sd)
+            
+            sample_responses.append(CohortSampleResponse(
+                id=cs.id,
+                external_id=cs.sample_external_id,
+                sample_group=cs.sample_group,
+                diagnosis=sample.primary_diagnosis if sample else cs.diagnosis,
+                age=sample.donor_age if sample else cs.age,
+                sex=sample.donor_sex if sample else cs.sex,
+                source_bank=sample.source_bank if sample else cs.source_bank,
+                race=sample.donor_race if sample else None,
+                braak_stage=braak_stage,
+                rin=float(sample.rin_score) if sample and sample.rin_score else None,
+                pmi=float(sample.postmortem_interval_hours) if sample and sample.postmortem_interval_hours else None,
+                ph=float(sample.ph_level) if sample and sample.ph_level else None,
+                diagnoses=diagnoses,
+            ))
 
         return CohortDetailResponse(
             id=cohort.id,
             name=cohort.name,
             description=cohort.description,
-            sample_count=len(samples),
+            sample_count=len(cohort_samples),
             case_count=case_count,
             control_count=control_count,
             created_at=cohort.created_at,
             updated_at=cohort.updated_at,
-            samples=[
-                CohortSampleResponse(
-                    id=s.id,
-                    external_id=s.sample_external_id,
-                    sample_group=s.sample_group,
-                    diagnosis=s.diagnosis,
-                    age=s.age,
-                    sex=s.sex,
-                    source_bank=s.source_bank,
-                )
-                for s in samples
-            ],
+            samples=sample_responses,
         )
     except HTTPException:
         raise
