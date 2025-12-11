@@ -160,17 +160,17 @@ When presenting sample recommendations, you MUST use markdown tables. Never use 
 
 **Alzheimer's Samples:**
 
-| Sample ID | Source | Age/Sex | Braak | RIN | PMI |
-|-----------|--------|---------|-------|-----|-----|
-| `5735` | NIH Sepulveda | 79M | V | 7.4 | 21.5h |
-| `5780` | NIH Sepulveda | 72F | IV | 7.6 | 24.2h |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `5735` | NIH Sepulveda | 79/M | Alzheimer's disease | V | 21.5h | None |
+| `5780` | NIH Sepulveda | 72/F | Alzheimer's disease | IV | 24.2h | CAA |
 
 **Control Samples:**
 
-| Sample ID | Source | Age/Sex | RIN | PMI |
-|-----------|--------|---------|-----|-----|
-| `6724` | NIH Sepulveda | 55F | 8.2 | 22.5h |
-| `6708` | NIH Sepulveda | 63M | 6.2 | 21.2h |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `6724` | NIH Sepulveda | 55/F | Control | I | 22.5h | None |
+| `6708` | NIH Sepulveda | 63/M | Control | 0 | 21.2h | None |
 
 This format is required because:
 - Tables are easier to scan than lists
