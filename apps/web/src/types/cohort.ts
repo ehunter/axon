@@ -150,8 +150,10 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     dataType: "categorical",
     categories: ["case", "control"],
     colorMap: {
-      case: "teal",
-      control: "neutral",
+      case: "#408AA0",
+      control: "#8B95A5",
+      Case: "#408AA0",
+      Control: "#8B95A5",
     },
   },
   {
@@ -186,8 +188,10 @@ export const DEFAULT_COLUMNS: ColumnDefinition[] = [
     dataType: "categorical",
     categories: ["Male", "Female"],
     colorMap: {
-      Male: "teal",
-      Female: "rose",
+      Male: "#408AA0",
+      Female: "#D4738C",
+      male: "#408AA0",
+      female: "#D4738C",
     },
   },
   {
