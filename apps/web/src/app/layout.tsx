@@ -11,7 +11,7 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Axon - Brain Bank Discovery",
+  title: "Oskar - Brain Tissue Discovery",
   description:
     "AI-powered brain tissue sample discovery for neuroscience research",
   keywords: [
