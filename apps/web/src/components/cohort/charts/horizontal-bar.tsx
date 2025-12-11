@@ -1,20 +1,13 @@
 /**
  * Horizontal Bar Chart with Custom Labels
  *
- * Displays categorical distribution as horizontal bars using Recharts/shadcn.
- * Layout: [Chart with labels inside bars] [Values column flush right]
- * Uses flexbox to ensure values align to parent container edge.
+ * Displays categorical distribution as horizontal bars.
+ * Layout: [Labels column] [Bars] [Values column]
+ * Labels are independent of bar width and can extend on one line.
  */
 
 "use client";
 
-import { Bar, BarChart, XAxis, YAxis, LabelList, Cell } from "recharts";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { BarChartData } from "@/types/cohort";
 
 interface HorizontalBarChartProps {
@@ -24,7 +17,7 @@ interface HorizontalBarChartProps {
   highlightedCategory?: string | null;
 }
 
-const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
+const HIGHLIGHT_COLOR = "#5BA8BC"; // Brighter teal for highlight
 const DIM_OPACITY = 0.4;
 const MAX_LABEL_LENGTH = 36; // Maximum characters before truncation
 
@@ -39,7 +32,7 @@ function truncateLabel(label: string, maxLength: number = MAX_LABEL_LENGTH): str
 export function HorizontalBarChart({
   data,
   height = 160,
-  accentColor = "hsl(186, 53%, 32%)", // Teal
+  accentColor = "#408AA0",
   highlightedCategory,
 }: HorizontalBarChartProps) {
   if (data.length === 0) {
@@ -54,111 +47,60 @@ export function HorizontalBarChart({
   const rawData = data.slice(0, 5);
   const maxValue = Math.max(...rawData.map((d) => d.value));
 
-  // Use actual values for bar widths (no normalization)
-  // Keep original name for tooltip, use truncated for display
-  const chartData = rawData.map((item) => ({
-    name: item.label,
-    displayName: truncateLabel(item.label),
-    value: item.value,
-  }));
-
-  const chartConfig: ChartConfig = {
-    value: {
-      label: "Count",
-      color: accentColor,
-    },
-  };
-
   // Fixed row height and gap for consistent spacing
-  const rowHeight = 28;
+  const rowHeight = 24;
   const rowGap = 6;
-  const calculatedHeight = chartData.length * rowHeight + (chartData.length - 1) * rowGap;
 
   return (
-    <div className="flex w-full gap-2" style={{ height }}>
-      {/* Chart area - bars with labels inside */}
-      <div className="flex-1 min-w-0">
-        <ChartContainer config={chartConfig} className="w-full" style={{ height: calculatedHeight }}>
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-            barCategoryGap={rowGap}
-          >
-            <YAxis
-              dataKey="name"
-              type="category"
-              tickLine={false}
-              axisLine={false}
-              hide
-            />
-            <XAxis
-              type="number"
-              hide
-              domain={[0, maxValue]}
-            />
-            <ChartTooltip
-              cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
-              content={<ChartTooltipContent />}
-            />
-            <Bar
-              dataKey="value"
-              radius={[0, 4, 4, 0]}
-              fill={accentColor}
-              barSize={rowHeight}
-              isAnimationActive={false}
-            >
-              {/* Individual bar colors for highlighting */}
-              {chartData.map((entry, index) => {
-                const isHighlighted = highlightedCategory === entry.name;
-                const isDimmed = highlightedCategory != null && !isHighlighted;
-                return (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={isHighlighted ? HIGHLIGHT_COLOR : accentColor}
-                    opacity={isDimmed ? DIM_OPACITY : 1}
-                  />
-                );
-              })}
-              {/* Label inside the bar (left side) - truncated */}
-              <LabelList
-                dataKey="displayName"
-                position="insideLeft"
-                offset={12}
-                className="fill-[#e0e6ff]"
-                fontSize={13}
-                fontWeight={500}
-              />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </div>
+    <div className="flex flex-col w-full" style={{ height, gap: rowGap }}>
+      {rawData.map((item, index) => {
+        const isHighlighted = highlightedCategory === item.label;
+        const isDimmed = highlightedCategory != null && !isHighlighted;
+        const barWidth = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
 
-      {/* Values column - flush right, aligned to top */}
-      <div
-        className="flex flex-col shrink-0"
-        style={{ width: 32, gap: rowGap }}
-      >
-        {chartData.map((item, index) => {
-          const isHighlighted = highlightedCategory === item.name;
-          const isDimmed = highlightedCategory != null && !isHighlighted;
-          return (
+        return (
+          <div
+            key={index}
+            className="flex items-center gap-2 transition-opacity"
+            style={{
+              height: rowHeight,
+              opacity: isDimmed ? DIM_OPACITY : 1,
+            }}
+            title={item.label} // Full label on hover
+          >
+            {/* Label - independent width, truncated with ellipsis */}
             <span
-              key={index}
-              className={`text-[13px] font-semibold text-right transition-opacity ${
+              className={`text-[13px] font-medium shrink-0 truncate transition-colors ${
+                isHighlighted ? "text-foreground" : "text-[#e0e6ff]"
+              }`}
+              style={{ maxWidth: "50%" }}
+            >
+              {truncateLabel(item.label)}
+            </span>
+
+            {/* Bar - flexible width */}
+            <div className="flex-1 h-full flex items-center min-w-0">
+              <div
+                className="h-full rounded-r transition-all"
+                style={{
+                  width: `${Math.max(barWidth, 4)}%`, // Minimum 4% width for visibility
+                  backgroundColor: isHighlighted ? HIGHLIGHT_COLOR : accentColor,
+                }}
+              />
+            </div>
+
+            {/* Value - fixed width, right aligned */}
+            <span
+              className={`text-[13px] font-semibold text-right shrink-0 transition-colors ${
                 isHighlighted ? "text-foreground" : "text-[#b5bcd3]"
               }`}
-              style={{
-                height: rowHeight,
-                lineHeight: `${rowHeight}px`,
-                opacity: isDimmed ? DIM_OPACITY : 1,
-              }}
+              style={{ width: 28 }}
             >
               {item.value}
             </span>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
