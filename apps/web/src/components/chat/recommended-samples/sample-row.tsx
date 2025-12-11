@@ -203,10 +203,15 @@ function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | nul
  * Expanded details section
  */
 function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
-  const details = [
-    { label: "Race", value: sample.race },
+  // Always show these fields (with fallback to "—")
+  const primaryDetails = [
+    { label: "Race", value: sample.race || "—" },
     { label: "Type", value: sample.type },
-    { label: "RIN", value: sample.rin != null ? sample.rin.toFixed(1) : null },
+    { label: "RIN", value: sample.rin != null ? sample.rin.toFixed(1) : "—" },
+  ];
+
+  // Only show these if they have values
+  const optionalDetails = [
     { label: "Price", value: sample.price != null ? `$${sample.price}` : null },
     { label: "Tissue Region", value: sample.details?.tissueRegion },
     { label: "Collection Date", value: sample.details?.collectionDate },
@@ -214,10 +219,18 @@ function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {details.map(
+      {primaryDetails.map((detail, index) => (
+        <div key={index}>
+          <dt className="text-xs text-muted-foreground uppercase tracking-wide">
+            {detail.label}
+          </dt>
+          <dd className="text-sm text-foreground mt-0.5">{detail.value}</dd>
+        </div>
+      ))}
+      {optionalDetails.map(
         (detail, index) =>
           detail.value && (
-            <div key={index}>
+            <div key={`opt-${index}`}>
               <dt className="text-xs text-muted-foreground uppercase tracking-wide">
                 {detail.label}
               </dt>
