@@ -63,7 +63,42 @@ export interface SampleStats {
 }
 
 /**
- * Order configuration form state
+ * Sample request configuration form state
+ * Contains information typically required by brain banks
+ */
+export interface SampleRequestConfig {
+  // Principal Investigator
+  piName: string;
+  piEmail: string;
+  piPhone: string;
+  
+  // Institution
+  institution: string;
+  department: string;
+  
+  // Shipping (must be institutional)
+  shippingAddress: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingZip: string;
+  shippingCountry: string;
+  
+  // Compliance
+  irbApproval: string; // IRB number or "exempt"
+  irbExpirationDate: string;
+  
+  // Funding (optional)
+  grantNumber: string;
+  fundingSource: string;
+  
+  // Project details
+  projectTitle: string;
+  intendedUse: string;
+}
+
+/**
+ * @deprecated Use SampleRequestConfig instead
+ * Order configuration form state (legacy)
  */
 export interface OrderConfig {
   format: "slide" | "block" | "shavings";

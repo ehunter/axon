@@ -18,6 +18,7 @@ export type {
   SampleStats,
   SampleGroup,
   OrderConfig,
+  SampleRequestConfig,
   SelectionState,
   PriceEstimate,
   RecommendedSamplesCardProps,
