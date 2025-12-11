@@ -42,7 +42,8 @@ class CohortSampleResponse(BaseModel):
     id: str
     external_id: str
     sample_group: str
-    diagnosis: Optional[str]
+    diagnosis: Optional[str]  # Legacy field - same as neuropathology_diagnosis
+    neuropathology_diagnosis: Optional[str] = None  # Pathologically confirmed diagnosis
     age: Optional[int]
     sex: Optional[str]
     source_bank: Optional[str]
@@ -52,7 +53,7 @@ class CohortSampleResponse(BaseModel):
     rin: Optional[float] = None
     pmi: Optional[float] = None
     ph: Optional[float] = None
-    diagnoses: list[str] = []
+    diagnoses: list[str] = []  # Clinical diagnoses
 
 
 class CohortResponse(BaseModel):
@@ -258,11 +259,15 @@ async def get_cohort(
             else:
                 diagnosis = cs.diagnosis
             
+            # Get neuropathology diagnosis
+            neuropath_diagnosis = sample.neuropathology_diagnosis if sample else None
+            
             sample_responses.append(CohortSampleResponse(
                 id=cs.id,
                 external_id=clean_external_id,  # Use cleaned ID without backticks
                 sample_group=cs.sample_group,
                 diagnosis=diagnosis,
+                neuropathology_diagnosis=neuropath_diagnosis,
                 age=sample.donor_age if sample else cs.age,
                 sex=sample.donor_sex if sample else cs.sex,
                 source_bank=sample.source_bank if sample else cs.source_bank,
