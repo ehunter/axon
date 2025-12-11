@@ -44,19 +44,22 @@ export function SampleTable({
               />
             </th>
             <th className="px-4 py-3 text-sm font-semibold text-foreground">
-              ID
+              Sample ID
             </th>
             <th className="px-4 py-3 text-sm font-semibold text-foreground">
-              Type
+              Source
+            </th>
+            <th className="px-4 py-3 text-sm font-semibold text-foreground">
+              Age/Sex
             </th>
             <th className="px-4 py-3 text-sm font-semibold text-foreground">
               RIN
             </th>
             <th className="px-4 py-3 text-sm font-semibold text-foreground">
-              Age
+              PMI
             </th>
             <th className="px-4 py-3 text-sm font-semibold text-foreground">
-              Price
+              Co-Pathologies
             </th>
             {/* Expand column */}
             <th className="w-12 px-4 py-3" />

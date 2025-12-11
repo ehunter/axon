@@ -43,16 +43,23 @@ export function SampleRow({
           />
         </td>
 
-        {/* ID */}
+        {/* Sample ID */}
         <td className="px-4 py-3">
           <span className="text-sm font-medium text-foreground">
             {sample.externalId}
           </span>
         </td>
 
-        {/* Type badge */}
+        {/* Source */}
         <td className="px-4 py-3">
-          <TypeBadge type={sample.type} />
+          <span className="text-sm text-foreground">
+            {sample.sourceBank || "—"}
+          </span>
+        </td>
+
+        {/* Age/Sex */}
+        <td className="px-4 py-3">
+          <AgeSex age={sample.age} sex={sample.sex} />
         </td>
 
         {/* RIN - color coded */}
@@ -60,17 +67,17 @@ export function SampleRow({
           <RinValue value={sample.rin} />
         </td>
 
-        {/* Age */}
+        {/* PMI */}
         <td className="px-4 py-3">
           <span className="text-sm text-foreground">
-            {sample.age != null ? `${sample.age}y` : "—"}
+            {sample.pmi != null ? `${sample.pmi}h` : "—"}
           </span>
         </td>
 
-        {/* Price */}
+        {/* Co-Pathologies */}
         <td className="px-4 py-3">
-          <span className="text-sm font-medium text-foreground">
-            {sample.price != null ? `$${sample.price}` : "—"}
+          <span className="text-sm text-foreground">
+            {sample.coPathologies || "—"}
           </span>
         </td>
 
@@ -87,7 +94,7 @@ export function SampleRow({
       {/* Expanded details */}
       {isExpanded && (
         <tr className="bg-muted/30">
-          <td colSpan={7} className="px-4 py-4">
+          <td colSpan={8} className="px-4 py-4">
             <ExpandedDetails sample={sample} />
           </td>
         </tr>
@@ -176,6 +183,24 @@ function TypeBadge({ type }: { type: RecommendedSample["type"] }) {
 }
 
 /**
+ * Age/Sex combined display
+ */
+function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | null }) {
+  const ageStr = age != null ? `${age}y` : "—";
+  const sexStr = sex ? (sex === "Male" ? "M" : "F") : "";
+  
+  if (age == null && !sex) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+  
+  return (
+    <span className="text-sm text-foreground">
+      {ageStr}{sexStr ? `/${sexStr}` : ""}
+    </span>
+  );
+}
+
+/**
  * RIN value with color coding
  */
 function RinValue({ value }: { value: number | null }) {
@@ -204,9 +229,9 @@ function RinValue({ value }: { value: number | null }) {
 function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
   const details = [
     { label: "Diagnosis", value: sample.diagnosis },
+    { label: "Type", value: sample.type },
     { label: "Braak Stage", value: sample.braakStage },
-    { label: "Sex", value: sample.sex },
-    { label: "Source Bank", value: sample.sourceBank },
+    { label: "Price", value: sample.price != null ? `$${sample.price}` : null },
     { label: "Tissue Region", value: sample.details?.tissueRegion },
     { label: "Collection Date", value: sample.details?.collectionDate },
   ];

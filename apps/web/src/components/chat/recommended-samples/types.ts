@@ -16,6 +16,8 @@ export interface RecommendedSample {
   braakStage: string | null;
   price: number | null;
   sourceBank: string;
+  pmi: number | null;
+  coPathologies: string | null;
   // Extended details for accordion
   details?: {
     pathologyNotes?: string;

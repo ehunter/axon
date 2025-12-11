@@ -108,6 +108,8 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
       columnMap.type = index;
     } else if (header.includes("price") || header.includes("cost")) {
       columnMap.price = index;
+    } else if (header.includes("co-path") || header.includes("copath") || header.includes("patholog")) {
+      columnMap.coPathologies = index;
     }
   });
 
@@ -129,21 +131,15 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
       externalId: columnMap.id !== undefined ? cells[columnMap.id] || `S-${rowIndex + 1}` : `S-${rowIndex + 1}`,
       type: parsePreservationType(columnMap.type !== undefined ? cells[columnMap.type] : ""),
       rin: columnMap.rin !== undefined ? parseFloat(cells[columnMap.rin]) || null : null,
-      age: columnMap.age !== undefined ? parseInt(cells[columnMap.age]) || null : null,
-      sex: columnMap.sex !== undefined ? parseSex(cells[columnMap.sex]) : null,
+      age: columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).age : null,
+      sex: columnMap.sex !== undefined ? parseSex(cells[columnMap.sex]) : (columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).sex : null),
       diagnosis: columnMap.diagnosis !== undefined ? cells[columnMap.diagnosis] || "Unknown" : "Unknown",
       braakStage: columnMap.braak !== undefined ? cells[columnMap.braak] || null : null,
       price: columnMap.price !== undefined ? parsePrice(cells[columnMap.price]) : null,
       sourceBank: columnMap.source !== undefined ? cells[columnMap.source] || "Unknown" : "Unknown",
+      pmi: columnMap.pmi !== undefined ? parsePmi(cells[columnMap.pmi]) : null,
+      coPathologies: columnMap.coPathologies !== undefined ? cells[columnMap.coPathologies] || null : null,
     };
-
-    // Add PMI to details if available
-    if (columnMap.pmi !== undefined && cells[columnMap.pmi]) {
-      sample.details = {
-        ...sample.details,
-        additionalMetadata: { pmi: cells[columnMap.pmi] },
-      };
-    }
 
     samples.push(sample);
   });
@@ -178,6 +174,45 @@ function parseSex(value: string): "Male" | "Female" | null {
   }
   if (lower.includes("female") || lower === "f") {
     return "Female";
+  }
+  return null;
+}
+
+/**
+ * Parse Age/Sex combined column (e.g., "72/M", "65/F", "80y/M")
+ */
+function parseAgeSex(value: string): { age: number | null; sex: "Male" | "Female" | null } {
+  if (!value) {
+    return { age: null, sex: null };
+  }
+
+  // Try to match patterns like "72/M", "65/F", "80y/M"
+  const match = value.match(/(\d+)\s*y?\s*\/?\s*([MF])?/i);
+  if (match) {
+    const age = parseInt(match[1]) || null;
+    let sex: "Male" | "Female" | null = null;
+    if (match[2]) {
+      sex = match[2].toUpperCase() === "M" ? "Male" : "Female";
+    }
+    return { age, sex };
+  }
+
+  // Just try to parse a number
+  const ageOnly = parseInt(value);
+  return { age: isNaN(ageOnly) ? null : ageOnly, sex: null };
+}
+
+/**
+ * Parse PMI from string (e.g., "12h", "12", "12 hours")
+ */
+function parsePmi(value: string): number | null {
+  if (!value || value === "—" || value === "-") {
+    return null;
+  }
+  const match = value.match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    const pmi = parseFloat(match[1]);
+    return isNaN(pmi) ? null : pmi;
   }
   return null;
 }
