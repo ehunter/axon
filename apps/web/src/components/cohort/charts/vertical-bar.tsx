@@ -122,6 +122,7 @@ export function VerticalBarChart({
             dataKey="value"
             radius={[4, 4, 0, 0]}
             fill={accentColor}
+            isAnimationActive={false}
           >
             {chartData.map((entry, index) => {
               const isHighlighted = highlightedBinIndex === index;
@@ -218,6 +219,7 @@ export function OrdinalBarChart({
             dataKey="value"
             radius={[4, 4, 0, 0]}
             fill={accentColor}
+            isAnimationActive={false}
           >
             {chartData.map((entry, index) => {
               const isHighlighted = highlightedCategory === entry.name;
