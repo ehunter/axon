@@ -82,6 +82,10 @@ TOOL_DEFINITIONS = [
                     "type": "string",
                     "description": "Search non-brain medical history/diagnoses (e.g., 'diabetes', 'hypertension', 'malaria', 'COVID'). Searches the donor's non-neurological conditions."
                 },
+                "ethnicity": {
+                    "type": "string",
+                    "description": "Filter by donor ethnicity (e.g., 'Hispanic', 'Not Hispanic')"
+                },
                 "limit": {
                     "type": "integer",
                     "description": "Maximum number of samples to return (default 20)"
@@ -438,10 +442,14 @@ class ToolHandler:
         if params.get("medical_history"):
             medical_term = params["medical_history"]
             # Use PostgreSQL JSON extraction with ->> operator
-            from sqlalchemy import text, literal_column
+            from sqlalchemy import literal_column
             query = query.where(
                 literal_column("raw_data->>'Non Brain Diagnosis'").ilike(f"%{medical_term}%")
             )
+        
+        # Filter by ethnicity
+        if params.get("ethnicity"):
+            query = query.where(Sample.donor_ethnicity.ilike(f"%{params['ethnicity']}%"))
         
         # Require valid data for matching (age is always required)
         query = query.where(Sample.donor_age.isnot(None))
