@@ -16,6 +16,7 @@ export type {
   RecommendedSample,
   ActiveFilter,
   SampleStats,
+  SampleGroup,
   OrderConfig,
   SelectionState,
   PriceEstimate,
