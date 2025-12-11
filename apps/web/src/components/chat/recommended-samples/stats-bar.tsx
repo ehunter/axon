@@ -44,8 +44,8 @@ export function StatsBar({ stats }: StatsBarProps) {
       highlight: !isSignificant(stats.rinPValue), // Non-significant is good (groups are balanced)
     },
     {
-      label: "Avg PMI",
-      value: stats.avgPmi != null ? `${stats.avgPmi.toFixed(1)}h` : "—",
+      label: "P(PMI)",
+      value: formatPValue(stats.pmiPValue),
     },
   ];
 
