@@ -19,8 +19,13 @@ router = APIRouter(prefix="/cohorts", tags=["cohorts"])
 
 
 class SampleInput(BaseModel):
-    """Input for a sample to add to cohort."""
+    """Input for a sample to add to cohort.
+    
+    IMPORTANT: source_bank is required to uniquely identify samples,
+    as the same external_id may exist at multiple brain banks.
+    """
     external_id: str
+    source_bank: Optional[str] = None  # REQUIRED for unique identification
     sample_group: str  # 'case' or 'control'
 
 
@@ -89,22 +94,32 @@ async def create_cohort(
         control_count = 0
         
         for sample_input in request.samples:
-            # Try to find the sample in the database
-            result = await db.execute(
-                select(Sample).where(Sample.external_id == sample_input.external_id)
-            )
+            # Clean the external_id (strip backticks that might be in markdown)
+            clean_external_id = sample_input.external_id.strip("`").strip()
+            
+            # Build query with BOTH external_id AND source_bank for unique identification
+            query = select(Sample).where(Sample.external_id == clean_external_id)
+            if sample_input.source_bank:
+                query = query.where(Sample.source_bank.ilike(f"%{sample_input.source_bank}%"))
+            
+            result = await db.execute(query)
             sample = result.scalar_one_or_none()
+            
+            # Use neuropathology_diagnosis (primary) instead of clinical diagnosis
+            diagnosis = sample.neuropathology_diagnosis if sample else None
+            if not diagnosis and sample:
+                diagnosis = sample.primary_diagnosis  # Fallback to clinical
             
             # Create cohort sample with cached info
             cohort_sample = CohortSample(
                 id=str(uuid4()),
                 cohort_id=cohort.id,
-                sample_external_id=sample_input.external_id,
+                sample_external_id=clean_external_id,
                 sample_group=sample_input.sample_group,
-                diagnosis=sample.primary_diagnosis if sample else None,
+                diagnosis=diagnosis,
                 age=sample.donor_age if sample else None,
                 sex=sample.donor_sex if sample else None,
-                source_bank=sample.source_bank if sample else None,
+                source_bank=sample.source_bank if sample else sample_input.source_bank,
             )
             db.add(cohort_sample)
             
@@ -236,11 +251,18 @@ async def get_cohort(
                         elif isinstance(sd, str):
                             diagnoses.append(sd)
             
+            # Use neuropathology_diagnosis (primary), fallback to clinical
+            diagnosis = None
+            if sample:
+                diagnosis = sample.neuropathology_diagnosis or sample.primary_diagnosis
+            else:
+                diagnosis = cs.diagnosis
+            
             sample_responses.append(CohortSampleResponse(
                 id=cs.id,
                 external_id=clean_external_id,  # Use cleaned ID without backticks
                 sample_group=cs.sample_group,
-                diagnosis=sample.primary_diagnosis if sample else cs.diagnosis,
+                diagnosis=diagnosis,
                 age=sample.donor_age if sample else cs.age,
                 sex=sample.donor_sex if sample else cs.sex,
                 source_bank=sample.source_bank if sample else cs.source_bank,

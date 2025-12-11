@@ -124,8 +124,12 @@ class Sample(Base):
     donor_ethnicity: Mapped[str | None] = mapped_column(String(100))
 
     # Clinical Information (using Text for potentially long values)
+    # Note: primary_diagnosis contains Clinical Brain Diagnosis (secondary importance)
+    # neuropathology_diagnosis is the PRIMARY field for sample recommendations
     primary_diagnosis: Mapped[str | None] = mapped_column(Text)
     primary_diagnosis_code: Mapped[str | None] = mapped_column(Text)  # Can have multiple ICD codes
+    neuropathology_diagnosis: Mapped[str | None] = mapped_column(Text)  # PRIMARY for recommendations
+    neuropathology_diagnosis_code: Mapped[str | None] = mapped_column(Text)
     secondary_diagnoses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON)
     cause_of_death: Mapped[str | None] = mapped_column(Text)
     manner_of_death: Mapped[str | None] = mapped_column(String(100))
