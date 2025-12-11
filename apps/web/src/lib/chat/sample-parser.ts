@@ -78,22 +78,25 @@ export function parseSampleRecommendations(text: string): ParsedSampleData {
     const textBeforeTable = text.slice(0, tableStartIndex);
     const lastLines = textBeforeTable.split('\n').slice(-5).join('\n');
     
-    // Determine if this is a control or case table
-    const isControl = /control/i.test(lastLines);
-    const sampleGroup: "case" | "control" = isControl ? "control" : "case";
+    // Determine default group for this table (used when Braak not available)
+    const isControlTable = /control/i.test(lastLines);
+    const defaultGroup: "case" | "control" = isControlTable ? "control" : "case";
     
-    // Parse the table
-    const samples = parseMarkdownTable(tableMatch[0], sampleGroup, sampleIdCounter);
+    // Parse the table - per-row Braak-based detection will override default
+    const samples = parseMarkdownTable(tableMatch[0], defaultGroup, sampleIdCounter);
     sampleIdCounter += samples.length;
     
-    if (isControl) {
-      controlsSamples.push(...samples);
-    } else {
-      casesSamples.push(...samples);
-    }
+    // Sort samples by their actual sampleGroup (determined per-row by Braak)
+    samples.forEach((sample) => {
+      if (sample.sampleGroup === "control") {
+        controlsSamples.push(sample);
+      } else {
+        casesSamples.push(sample);
+      }
+    });
   });
 
-  // Combine all samples
+  // Combine all samples (cases first, then controls)
   result.samples = [...casesSamples, ...controlsSamples];
   
   // Create groups
@@ -123,11 +126,53 @@ export function parseSampleRecommendations(text: string): ParsedSampleData {
 }
 
 /**
+ * Check if Braak stage indicates HIGH pathology (likely case)
+ * Stages III-VI indicate significant disease
+ */
+function isHighBraakStage(braak: string | null): boolean {
+  if (!braak) return false;
+  const upper = braak.toUpperCase().trim();
+  // Match III, IV, V, VI or 3, 4, 5, 6
+  return /^(III|IV|V|VI|[3-6])$/i.test(upper) || 
+         /^(III|IV|V|VI|[3-6])\s/i.test(upper);
+}
+
+/**
+ * Check if Braak stage indicates LOW/MISSING pathology (likely control)
+ * Stages 0-II or missing (-) indicate minimal/no disease
+ */
+function isLowOrMissingBraakStage(braak: string | null): boolean {
+  if (!braak) return true; // Missing = likely control
+  const trimmed = braak.trim();
+  // Check for missing indicators
+  if (/^[-—–−]$/.test(trimmed) || trimmed === "" || /^n\/?a$/i.test(trimmed)) {
+    return true;
+  }
+  // Check for low stages (0, I, II)
+  const upper = trimmed.toUpperCase();
+  return /^(0|I|II|[0-2])$/i.test(upper) || /^(0|I|II|[0-2])\s/i.test(upper);
+}
+
+/**
+ * Determine sample group based on Braak stage
+ * HIGH Braak (III-VI) = Case, LOW/MISSING Braak (0-II, -) = Control
+ */
+function determineSampleGroupByBraak(braak: string | null, defaultGroup: "case" | "control"): "case" | "control" {
+  if (isHighBraakStage(braak)) {
+    return "case";
+  }
+  if (isLowOrMissingBraakStage(braak)) {
+    return "control";
+  }
+  return defaultGroup;
+}
+
+/**
  * Parse a markdown table into sample objects
  */
 function parseMarkdownTable(
   tableText: string,
-  sampleGroup: "case" | "control" = "case",
+  defaultSampleGroup: "case" | "control" = "case",
   startingId: number = 0
 ): RecommendedSample[] {
   const lines = tableText.trim().split("\n").filter((line) => line.trim());
@@ -191,6 +236,12 @@ function parseMarkdownTable(
       ? rawExternalId.replace(/`/g, "").trim() 
       : `S-${globalIndex + 1}`;
     
+    // Get Braak stage for per-row group determination
+    const braakStage = columnMap.braak !== undefined ? cells[columnMap.braak] || null : null;
+    
+    // Determine sample group: use Braak stage if available, otherwise default
+    const sampleGroup = determineSampleGroupByBraak(braakStage, defaultSampleGroup);
+    
     const sample: RecommendedSample = {
       id: `sample-${globalIndex}`,
       externalId: cleanExternalId || `S-${globalIndex + 1}`,
@@ -200,7 +251,7 @@ function parseMarkdownTable(
       sex: columnMap.sex !== undefined ? parseSex(cells[columnMap.sex]) : (columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).sex : null),
       race: columnMap.race !== undefined ? cells[columnMap.race] || null : null,
       diagnosis: columnMap.diagnosis !== undefined ? cells[columnMap.diagnosis] || "Unknown" : "Unknown",
-      braakStage: columnMap.braak !== undefined ? cells[columnMap.braak] || null : null,
+      braakStage,
       price: columnMap.price !== undefined ? parsePrice(cells[columnMap.price]) : null,
       sourceBank: columnMap.source !== undefined ? cells[columnMap.source] || "Unknown" : "Unknown",
       pmi: columnMap.pmi !== undefined ? parsePmi(cells[columnMap.pmi]) : null,
