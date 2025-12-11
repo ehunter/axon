@@ -130,7 +130,7 @@ export default function CohortDetailPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+        <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
           <div className="flex-1 overflow-auto p-10">
             <div className="animate-pulse">
               <div className="h-8 bg-muted rounded w-1/3 mb-4" />
@@ -146,7 +146,7 @@ export default function CohortDetailPage() {
   if (error || !cohort) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+        <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
           <div className="flex-1 overflow-auto p-10">
             <Link
               href="/cohorts"
@@ -174,7 +174,7 @@ export default function CohortDetailPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
         <div className="flex-1 overflow-auto p-10">
           {/* Back link and delete button */}
           <div className="flex items-center justify-between mb-6">

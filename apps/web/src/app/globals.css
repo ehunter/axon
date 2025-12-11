@@ -342,7 +342,7 @@
 
   /* Main content container with rounded top */
   .main-container {
-    @apply rounded-tl-3xl rounded-tr-3xl bg-surface;
+    @apply bg-surface;
     box-shadow: 0px 2px 5px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
   }
 
