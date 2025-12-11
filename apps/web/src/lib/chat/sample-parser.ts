@@ -58,9 +58,9 @@ export function parseSampleRecommendations(text: string): ParsedSampleData {
   }
 
   // Extract text before first table and after last table
-  const firstTableIndex = text.indexOf(tableMatches[0][0]);
+  const firstTableIndex = tableMatches[0].index ?? 0;
   const lastMatch = tableMatches[tableMatches.length - 1];
-  const lastTableEndIndex = text.indexOf(lastMatch[0]) + lastMatch[0].length;
+  const lastTableEndIndex = (lastMatch.index ?? 0) + lastMatch[0].length;
   
   result.beforeTable = text.slice(0, firstTableIndex).trim();
   result.afterTable = text.slice(lastTableEndIndex).trim();
@@ -70,8 +70,9 @@ export function parseSampleRecommendations(text: string): ParsedSampleData {
   const casesSamples: RecommendedSample[] = [];
   const controlsSamples: RecommendedSample[] = [];
 
-  tableMatches.forEach((tableMatch, tableIndex) => {
-    const tableStartIndex = text.indexOf(tableMatch[0]);
+  tableMatches.forEach((tableMatch) => {
+    // Use the index property from regex match (NOT indexOf which finds first occurrence)
+    const tableStartIndex = tableMatch.index ?? 0;
     
     // Look for section header before this table
     const textBeforeTable = text.slice(0, tableStartIndex);
