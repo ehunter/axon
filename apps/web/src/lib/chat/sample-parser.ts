@@ -110,6 +110,8 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
       columnMap.price = index;
     } else if (header.includes("co-path") || header.includes("copath") || header.includes("patholog")) {
       columnMap.coPathologies = index;
+    } else if (header.includes("race") || header.includes("ethnicity")) {
+      columnMap.race = index;
     }
   });
 
@@ -133,6 +135,7 @@ function parseMarkdownTable(tableText: string): RecommendedSample[] {
       rin: columnMap.rin !== undefined ? parseFloat(cells[columnMap.rin]) || null : null,
       age: columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).age : null,
       sex: columnMap.sex !== undefined ? parseSex(cells[columnMap.sex]) : (columnMap.age !== undefined ? parseAgeSex(cells[columnMap.age]).sex : null),
+      race: columnMap.race !== undefined ? cells[columnMap.race] || null : null,
       diagnosis: columnMap.diagnosis !== undefined ? cells[columnMap.diagnosis] || "Unknown" : "Unknown",
       braakStage: columnMap.braak !== undefined ? cells[columnMap.braak] || null : null,
       price: columnMap.price !== undefined ? parsePrice(cells[columnMap.price]) : null,

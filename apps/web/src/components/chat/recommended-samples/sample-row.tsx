@@ -204,7 +204,7 @@ function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | nul
  */
 function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
   const details = [
-    { label: "Diagnosis", value: sample.diagnosis },
+    { label: "Race", value: sample.race },
     { label: "Type", value: sample.type },
     { label: "RIN", value: sample.rin != null ? sample.rin.toFixed(1) : null },
     { label: "Price", value: sample.price != null ? `$${sample.price}` : null },
