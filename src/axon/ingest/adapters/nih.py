@@ -352,8 +352,12 @@ class NIHAdapter:
             "donor_sex": record.sex,
             "donor_race": record.race,
             "donor_ethnicity": record.ethnicity,
+            # Clinical diagnosis (secondary - for reference only)
             "primary_diagnosis": record.clinical_diagnosis,
             "primary_diagnosis_code": record.clinical_diagnosis_code,
+            # Neuropathology diagnosis (PRIMARY - use for sample recommendations)
+            "neuropathology_diagnosis": record.neuropathology_diagnosis,
+            "neuropathology_diagnosis_code": record.neuropathology_diagnosis_code,
             "brain_region": record.brain_region,
             "hemisphere": record.hemisphere,
             "postmortem_interval_hours": record.pmi_hours,

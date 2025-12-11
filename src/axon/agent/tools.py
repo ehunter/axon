@@ -24,13 +24,13 @@ from axon.agent.icd_mapping import (
 TOOL_DEFINITIONS = [
     {
         "name": "search_samples",
-        "description": "Search for brain tissue samples in the database. Use this to find samples matching specific criteria. Returns actual samples from the database.",
+        "description": "Search for brain tissue samples by NEUROPATHOLOGY diagnosis (pathologically confirmed). Returns samples from the database with unique identifiers (sample_id @ source_bank).",
         "input_schema": {
             "type": "object",
             "properties": {
                 "diagnosis": {
                     "type": "string",
-                    "description": "Disease/condition to search for (e.g., 'Alzheimer', 'Parkinson', 'control')"
+                    "description": "Neuropathology diagnosis to search for (e.g., 'Alzheimer', 'Parkinson', 'control'). Searches pathologically confirmed diagnoses, not clinical."
                 },
                 "min_age": {
                     "type": "integer",
@@ -97,13 +97,17 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "add_to_selection",
-        "description": "Add a sample to the current selection by its ID. The sample must exist in the database. If multiple tissue samples exist for the same subject, the one with best RIN is selected.",
+        "description": "Add a sample to the current selection. IMPORTANT: Provide source_bank to uniquely identify the sample, as the same sample_id may exist at multiple brain banks with different donors.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "sample_id": {
                     "type": "string",
                     "description": "The external ID of the sample to add"
+                },
+                "source_bank": {
+                    "type": "string",
+                    "description": "The brain bank source (e.g., 'NIH Miami', 'Mt. Sinai', 'Harvard'). IMPORTANT: Required to uniquely identify the sample."
                 },
                 "group": {
                     "type": "string",
@@ -115,24 +119,38 @@ TOOL_DEFINITIONS = [
                     "description": "Optional: filter by brain region if multiple samples exist for this subject"
                 }
             },
-            "required": ["sample_id", "group"]
+            "required": ["sample_id", "source_bank", "group"]
         }
     },
     {
         "name": "add_samples_to_selection",
-        "description": "Add multiple samples to the selection at once. More efficient than calling add_to_selection multiple times. Use this when recommending a set of samples to the user.",
+        "description": "Add multiple samples to the selection at once. Use this when recommending a set of samples. Each sample should include source_bank to uniquely identify it.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "case_ids": {
+                "cases": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of external IDs for case samples to add"
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sample_id": {"type": "string", "description": "External ID of the sample"},
+                            "source_bank": {"type": "string", "description": "Brain bank source (e.g., 'NIH Miami', 'Mt. Sinai')"}
+                        },
+                        "required": ["sample_id", "source_bank"]
+                    },
+                    "description": "List of case samples to add, each with sample_id and source_bank"
                 },
-                "control_ids": {
+                "controls": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of external IDs for control samples to add"
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sample_id": {"type": "string", "description": "External ID of the sample"},
+                            "source_bank": {"type": "string", "description": "Brain bank source (e.g., 'NIH Miami', 'Mt. Sinai')"}
+                        },
+                        "required": ["sample_id", "source_bank"]
+                    },
+                    "description": "List of control samples to add, each with sample_id and source_bank"
                 }
             },
             "required": []
@@ -225,15 +243,21 @@ class SelectedSample:
     """A sample that has been selected."""
     id: str
     external_id: str
-    diagnosis: str | None
-    age: int | None
-    sex: str | None
-    rin: float | None
-    pmi: float | None
-    brain_region: str | None
-    source_bank: str | None
-    braak_stage: str | None
+    neuropathology_diagnosis: str | None  # PRIMARY - pathologically confirmed
+    clinical_diagnosis: str | None = None  # Secondary - for reference
+    age: int | None = None
+    sex: str | None = None
+    rin: float | None = None
+    pmi: float | None = None
+    brain_region: str | None = None
+    source_bank: str | None = None
+    braak_stage: str | None = None
     copathologies: str | None = None
+    
+    @property
+    def diagnosis(self) -> str | None:
+        """Primary diagnosis - uses neuropathology, falls back to clinical."""
+        return self.neuropathology_diagnosis or self.clinical_diagnosis
     
     @property
     def repository(self) -> str | None:
@@ -361,20 +385,29 @@ class ToolHandler:
             return f"Error executing {tool_name}: {str(e)}"
     
     async def _search_samples(self, params: dict) -> str:
-        """Search for samples in the database."""
+        """Search for samples in the database.
+        
+        IMPORTANT: Uses neuropathology_diagnosis (pathologically confirmed) for filtering,
+        NOT primary_diagnosis (clinical diagnosis). This ensures accurate sample recommendations.
+        """
         query = select(Sample)
         
-        # Apply filters
+        # Apply filters using NEUROPATHOLOGY diagnosis (not clinical)
         if params.get("diagnosis"):
             diagnosis = params["diagnosis"]
             if diagnosis.lower() == "control":
+                # Controls: look for samples without neuropathological disease findings
                 query = query.where(or_(
-                    Sample.primary_diagnosis.ilike("%control%"),
-                    Sample.primary_diagnosis.ilike("%normal%"),
-                    Sample.primary_diagnosis.ilike("%no clinical%"),
+                    Sample.neuropathology_diagnosis.ilike("%diagnostic pathology not present%"),
+                    Sample.neuropathology_diagnosis.ilike("%not evaluated%"),
+                    Sample.neuropathology_diagnosis.ilike("%no significant%"),
+                    Sample.neuropathology_diagnosis.ilike("%normal%"),
+                    # Fallback to clinical if neuropath not available
+                    Sample.neuropathology_diagnosis.is_(None),
                 ))
             else:
-                query = query.where(Sample.primary_diagnosis.ilike(f"%{diagnosis}%"))
+                # Disease cases: filter by neuropathology diagnosis
+                query = query.where(Sample.neuropathology_diagnosis.ilike(f"%{diagnosis}%"))
         
         if params.get("min_age"):
             query = query.where(Sample.donor_age >= params["min_age"])
@@ -474,10 +507,14 @@ class ToolHandler:
             pmi_str = f"{float(s.postmortem_interval_hours):.1f}h" if s.postmortem_interval_hours else "N/A"
             braak = self._extract_braak(s)
             copathologies = self._extract_copathologies(s)
+            # Use neuropathology diagnosis (pathologically confirmed), fallback to clinical
+            diagnosis = s.neuropathology_diagnosis or s.primary_diagnosis or 'N/A'
+            # Truncate long diagnoses
+            if len(diagnosis) > 80:
+                diagnosis = diagnosis[:77] + "..."
             
-            lines.append(f"{i}. **{s.external_id}**")
-            lines.append(f"   - Repository: {s.source_bank or 'N/A'}")
-            lines.append(f"   - Diagnosis: {s.primary_diagnosis or 'N/A'}")
+            lines.append(f"{i}. **{s.external_id}** @ {s.source_bank}")
+            lines.append(f"   - Neuropathology Diagnosis: {diagnosis}")
             lines.append(f"   - Age: {s.donor_age or 'N/A'}, Sex: {s.donor_sex or 'N/A'}")
             lines.append(f"   - RIN: {rin_str}, PMI: {pmi_str}")
             if braak:
@@ -493,16 +530,25 @@ class ToolHandler:
         return self.selection.to_summary()
     
     async def _add_to_selection(self, params: dict) -> str:
-        """Add a sample to the selection."""
+        """Add a sample to the selection.
+        
+        IMPORTANT: Requires source_bank to disambiguate samples with the same external_id
+        at different brain banks.
+        """
         sample_id = params.get("sample_id")
         group = params.get("group")
+        source_bank = params.get("source_bank")
         brain_region = params.get("brain_region")  # Optional filter
         
         if not sample_id or not group:
             return "Error: sample_id and group are required."
         
-        # Verify sample exists in database
+        # Verify sample exists in database - use BOTH external_id AND source_bank
         query = select(Sample).where(Sample.external_id == sample_id)
+        
+        # CRITICAL: Filter by source_bank to get the correct sample
+        if source_bank:
+            query = query.where(Sample.source_bank.ilike(f"%{source_bank}%"))
         
         # If brain region specified, filter by it
         if brain_region:
@@ -515,19 +561,22 @@ class ToolHandler:
         samples = result.scalars().all()
         
         if not samples:
+            if source_bank:
+                return f"Error: Sample '{sample_id}' at '{source_bank}' not found in database."
             return f"Error: Sample '{sample_id}' not found in database. Cannot add non-existent samples."
         
-        # If multiple matches, take the best one (highest RIN) and note it
+        # If multiple matches (shouldn't happen with source_bank), take the best one
         sample = samples[0]
         multiple_note = ""
         if len(samples) > 1:
-            multiple_note = f" (Note: {len(samples)} tissue samples exist for this subject; selected the one with best RIN)"
+            multiple_note = f" (Note: {len(samples)} tissue samples exist; selected from {sample.source_bank})"
         
         # Create selected sample
         selected = SelectedSample(
             id=sample.id,
             external_id=sample.external_id,
-            diagnosis=sample.primary_diagnosis,
+            neuropathology_diagnosis=sample.neuropathology_diagnosis,
+            clinical_diagnosis=sample.primary_diagnosis,
             age=sample.donor_age,
             sex=sample.donor_sex,
             rin=float(sample.rin_score) if sample.rin_score else None,
@@ -542,52 +591,70 @@ class ToolHandler:
             if self.selection.add_case(selected):
                 # Persist to database if persistence is enabled
                 await self._persist_sample_add(selected, "case")
-                return f"Added {sample_id} to cases.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
+                return f"Added {sample_id}@{sample.source_bank} to cases.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in cases."
         else:
             if self.selection.add_control(selected):
                 # Persist to database if persistence is enabled
                 await self._persist_sample_add(selected, "control")
-                return f"Added {sample_id} to controls.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
+                return f"Added {sample_id}@{sample.source_bank} to controls.{multiple_note} Current selection: {len(self.selection.cases)} cases, {len(self.selection.controls)} controls."
             else:
                 return f"Sample {sample_id} is already in controls."
     
     async def _add_samples_to_selection(self, params: dict) -> str:
-        """Add multiple samples to the selection at once."""
-        case_ids = params.get("case_ids", [])
-        control_ids = params.get("control_ids", [])
+        """Add multiple samples to the selection at once.
         
-        if not case_ids and not control_ids:
-            return "Error: Please provide case_ids and/or control_ids."
+        Accepts new format (objects with sample_id and source_bank) or legacy format (string IDs).
+        """
+        # Support both new format (cases/controls with objects) and legacy (case_ids/control_ids)
+        cases = params.get("cases", [])
+        controls = params.get("controls", [])
+        
+        # Legacy support: convert old format to new format
+        if not cases and params.get("case_ids"):
+            cases = [{"sample_id": sid, "source_bank": None} for sid in params["case_ids"]]
+        if not controls and params.get("control_ids"):
+            controls = [{"sample_id": sid, "source_bank": None} for sid in params["control_ids"]]
+        
+        if not cases and not controls:
+            return "Error: Please provide cases and/or controls."
         
         added_cases = []
         added_controls = []
         failed = []
         
         # Add cases
-        for sample_id in case_ids:
-            result = await self._add_single_sample(sample_id, "cases")
+        for sample in cases:
+            sample_id = sample.get("sample_id") if isinstance(sample, dict) else sample
+            source_bank = sample.get("source_bank") if isinstance(sample, dict) else None
+            result = await self._add_single_sample(sample_id, "cases", source_bank)
             if result["success"]:
-                added_cases.append(sample_id)
+                added_cases.append(f"{sample_id}@{source_bank}" if source_bank else sample_id)
             else:
-                failed.append(f"{sample_id}: {result['error']}")
+                failed.append(f"{sample_id}@{source_bank}: {result['error']}" if source_bank else f"{sample_id}: {result['error']}")
         
         # Add controls
-        for sample_id in control_ids:
-            result = await self._add_single_sample(sample_id, "controls")
+        for sample in controls:
+            sample_id = sample.get("sample_id") if isinstance(sample, dict) else sample
+            source_bank = sample.get("source_bank") if isinstance(sample, dict) else None
+            result = await self._add_single_sample(sample_id, "controls", source_bank)
             if result["success"]:
-                added_controls.append(sample_id)
+                added_controls.append(f"{sample_id}@{source_bank}" if source_bank else sample_id)
             else:
-                failed.append(f"{sample_id}: {result['error']}")
+                failed.append(f"{sample_id}@{source_bank}: {result['error']}" if source_bank else f"{sample_id}: {result['error']}")
         
         # Build response
         lines = ["## Samples Added to Selection\n"]
         
         if added_cases:
-            lines.append(f"**Cases added:** {len(added_cases)} ({', '.join(added_cases)})")
+            lines.append(f"**Cases added:** {len(added_cases)}")
+            for c in added_cases[:10]:
+                lines.append(f"  - {c}")
         if added_controls:
-            lines.append(f"**Controls added:** {len(added_controls)} ({', '.join(added_controls)})")
+            lines.append(f"**Controls added:** {len(added_controls)}")
+            for c in added_controls[:10]:
+                lines.append(f"  - {c}")
         
         lines.append(f"\n**Current selection:** {len(self.selection.cases)} cases, {len(self.selection.controls)} controls")
         
@@ -598,24 +665,35 @@ class ToolHandler:
         
         return "\n".join(lines)
     
-    async def _add_single_sample(self, sample_id: str, group: str) -> dict:
-        """Helper to add a single sample without returning a string."""
-        # Verify sample exists in database
+    async def _add_single_sample(self, sample_id: str, group: str, source_bank: str | None = None) -> dict:
+        """Helper to add a single sample without returning a string.
+        
+        Args:
+            sample_id: The external_id of the sample
+            group: "cases" or "controls"
+            source_bank: The brain bank (RECOMMENDED to avoid ambiguity)
+        """
+        # Verify sample exists in database - use BOTH external_id AND source_bank when available
         query = select(Sample).where(Sample.external_id == sample_id)
+        
+        if source_bank:
+            query = query.where(Sample.source_bank.ilike(f"%{source_bank}%"))
+        
         query = query.order_by(Sample.rin_score.desc().nullslast())
         
         result = await self.db_session.execute(query)
         samples = result.scalars().all()
         
         if not samples:
-            return {"success": False, "error": "not found"}
+            return {"success": False, "error": f"not found at {source_bank}" if source_bank else "not found"}
         
         sample = samples[0]
         
         selected = SelectedSample(
             id=sample.id,
             external_id=sample.external_id,
-            diagnosis=sample.primary_diagnosis,
+            neuropathology_diagnosis=sample.neuropathology_diagnosis,
+            clinical_diagnosis=sample.primary_diagnosis,
             age=sample.donor_age,
             sex=sample.donor_sex,
             rin=float(sample.rin_score) if sample.rin_score else None,
@@ -629,12 +707,12 @@ class ToolHandler:
         if group == "cases":
             if self.selection.add_case(selected):
                 await self._persist_sample_add(selected, "case")
-                return {"success": True}
+                return {"success": True, "source_bank": sample.source_bank}
             return {"success": False, "error": "already in cases"}
         else:
             if self.selection.add_control(selected):
                 await self._persist_sample_add(selected, "control")
-                return {"success": True}
+                return {"success": True, "source_bank": sample.source_bank}
             return {"success": False, "error": "already in controls"}
     
     async def _remove_from_selection(self, params: dict) -> str:

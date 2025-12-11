@@ -292,6 +292,7 @@ export function RecommendedSamplesCard({
           description,
           samples: selectedSamplesList.map((s) => ({
             external_id: s.externalId,
+            source_bank: s.sourceBank, // CRITICAL: Include source_bank for unique identification
             sample_group: s.sampleGroup,
           })),
         }),
