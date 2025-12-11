@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/chart";
 import { HistogramData, BarChartData } from "@/types/cohort";
 
-const HIGHLIGHT_COLOR = "hsl(186, 65%, 45%)"; // Brighter teal for highlight
+const HIGHLIGHT_COLOR = "#5BA8BC"; // Brighter version of #408AA0 for highlight
 const DIM_OPACITY = 0.4;
 
 interface VerticalBarChartProps {
@@ -34,7 +34,7 @@ export function VerticalBarChart({
   height = 150,
   showMedian = true,
   medianLabel = "Median",
-  accentColor = "hsl(186, 53%, 32%)", // Teal
+  accentColor = "#408AA0",
   highlightedValue,
 }: VerticalBarChartProps) {
   // Normalize data to array format
@@ -174,7 +174,7 @@ export function OrdinalBarChart({
   data,
   height = 150,
   medianValue,
-  accentColor = "hsl(186, 53%, 32%)", // Teal
+  accentColor = "#408AA0",
   highlightedCategory,
 }: OrdinalBarChartProps) {
   if (data.length === 0 || data.every((d) => d.value === 0)) {
