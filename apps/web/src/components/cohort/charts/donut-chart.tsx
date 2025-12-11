@@ -139,10 +139,12 @@ export function DonutChart({
  * Default colors for common categories
  */
 export const DONUT_COLORS = {
-  Male: "hsl(186, 53%, 32%)",      // Teal
-  Female: "hsl(350, 15%, 55%)",    // Rose/mauve
-  Case: "hsl(186, 53%, 32%)",      // Teal
-  Control: "hsl(var(--muted-foreground))", // Neutral
+  Male: "#408AA0",      // Teal (matches bar charts)
+  Female: "#D4738C",    // Rose/coral
+  Case: "#408AA0",      // Teal (matches bar charts)
+  Control: "#8B95A5",   // Slate gray
+  case: "#408AA0",      // Teal (lowercase variant)
+  control: "#8B95A5",   // Slate gray (lowercase variant)
 };
 
 /**
