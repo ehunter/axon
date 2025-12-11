@@ -198,23 +198,15 @@ function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | nul
 }
 
 /**
- * RIN value with color coding
+ * RIN value display
  */
 function RinValue({ value }: { value: number | null }) {
   if (value == null) {
     return <span className="text-sm text-muted-foreground">—</span>;
   }
 
-  // Color based on quality
-  const getColor = (rin: number) => {
-    if (rin >= 8) return "text-teal-400";
-    if (rin >= 7) return "text-foreground";
-    if (rin >= 5) return "text-amber-400";
-    return "text-red-400";
-  };
-
   return (
-    <span className={`text-sm font-medium ${getColor(value)}`}>
+    <span className="text-sm text-foreground">
       {value.toFixed(1)}
     </span>
   );
