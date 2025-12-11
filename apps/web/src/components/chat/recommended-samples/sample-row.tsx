@@ -32,7 +32,7 @@ export function SampleRow({
         onClick={onExpand}
       >
         {/* Checkbox */}
-        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+        <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onChange={onSelect}
@@ -41,47 +41,47 @@ export function SampleRow({
         </td>
 
         {/* Sample ID */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <span className="text-sm font-medium text-foreground">
             {sample.externalId}
           </span>
         </td>
 
         {/* Source */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <span className="text-sm text-foreground">
             {sample.sourceBank || "—"}
           </span>
         </td>
 
         {/* Age/Sex */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <AgeSex age={sample.age} sex={sample.sex} />
         </td>
 
         {/* Braak Stage */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <span className="text-sm text-foreground">
             {sample.braakStage || "—"}
           </span>
         </td>
 
         {/* PMI */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <span className="text-sm text-foreground">
             {sample.pmi != null ? `${sample.pmi}h` : "—"}
           </span>
         </td>
 
         {/* Co-Pathologies */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <span className="text-sm text-foreground">
             {sample.coPathologies || "—"}
           </span>
         </td>
 
         {/* Expand chevron */}
-        <td className="px-3 py-2">
+        <td className="px-3 py-1.5">
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform ${
               isExpanded ? "rotate-180" : ""
