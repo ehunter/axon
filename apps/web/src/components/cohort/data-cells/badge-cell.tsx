@@ -44,7 +44,7 @@ export function BadgeCell({
   if (value == null || (Array.isArray(value) && value.length === 0)) {
     return (
       <div
-        className={`flex items-center h-10 px-3 transition-colors cursor-default ${
+        className={`flex items-center min-h-10 py-2 px-3 transition-colors cursor-default ${
           isHovered
             ? "bg-muted hover:bg-muted-foreground/20"
             : "bg-secondary hover:bg-muted/70"
@@ -62,7 +62,7 @@ export function BadgeCell({
 
   return (
     <div
-      className={`flex items-center gap-2 h-10 px-3 overflow-hidden transition-colors cursor-default ${
+      className={`flex flex-wrap items-start gap-1.5 min-h-10 py-2 px-3 transition-colors cursor-default ${
         isHovered
           ? "bg-muted hover:bg-muted-foreground/20"
           : "bg-secondary hover:bg-muted/70"
@@ -71,14 +71,9 @@ export function BadgeCell({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {values.slice(0, 3).map((v, i) => (
+      {values.map((v, i) => (
         <Badge key={i} value={v} />
       ))}
-      {values.length > 3 && (
-        <span className="text-xs text-muted-foreground">
-          +{values.length - 3}
-        </span>
-      )}
     </div>
   );
 }
@@ -87,7 +82,7 @@ function Badge({ value }: { value: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+        "inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border leading-tight",
         getBadgeVariant(value)
       )}
     >
