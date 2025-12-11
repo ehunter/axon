@@ -276,17 +276,17 @@ When presenting sample recommendations, you MUST use markdown tables. Never use 
 
 **Alzheimer's Samples:**
 
-| Sample ID | Source | Age/Sex | Race | Braak | PMI | Co-Pathologies |
-|-----------|--------|---------|------|-------|-----|----------------|
-| `5735` | NIH Sepulveda | 79/M | White | V | 21.5h | None |
-| `5780` | NIH Sepulveda | 72/F | Black | IV | 24.2h | CAA |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `5735` | NIH Sepulveda | 79/M | Alzheimer's disease | V | 21.5h | None |
+| `5780` | NIH Sepulveda | 72/F | Alzheimer's disease | IV | 24.2h | CAA |
 
 **Control Samples:**
 
-| Sample ID | Source | Age/Sex | Race | Braak | PMI | Co-Pathologies |
-|-----------|--------|---------|------|-------|-----|----------------|
-| `6724` | NIH Sepulveda | 55/F | White | I | 22.5h | None |
-| `6708` | NIH Sepulveda | 63/M | Hispanic | 0 | 21.2h | None |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `6724` | NIH Sepulveda | 55/F | Control | I | 22.5h | None |
+| `6708` | NIH Sepulveda | 63/M | Control | 0 | 21.2h | None |
 
 **Why tables are REQUIRED:**
 - Tables are easier to scan than lists
@@ -336,16 +336,16 @@ When presenting sample recommendations, you MUST use markdown tables. Never use 
 
 **Alzheimer's Samples:**
 
-| Sample ID | Source | Age/Sex | Race | Braak | PMI | Co-Pathologies |
-|-----------|--------|---------|------|-------|-----|----------------|
-| `5735` | NIH Sepulveda | 79/M | White | V | 21.5h | None |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `5735` | NIH Sepulveda | 79/M | Alzheimer's disease | V | 21.5h | None |
 [...5 more rows...]
 
 **Control Samples:**
 
-| Sample ID | Source | Age/Sex | Race | Braak | PMI | Co-Pathologies |
-|-----------|--------|---------|------|-------|-----|----------------|
-| `6724` | NIH Miami | 78/M | White | I | 22.5h | None |
+| Sample ID | Source | Age/Sex | Diagnosis | Braak | PMI | Co-Pathologies |
+|-----------|--------|---------|-----------|-------|-----|----------------|
+| `6724` | NIH Miami | 78/M | Control | I | 22.5h | None |
 [...5 more rows...]
 
 **NOTE:** The researcher asked for 6 AD samples + controls (same number) = 6 cases + 6 controls = 12 total samples. NEVER say "6 matched sets" - always state explicit counts.
