@@ -33,7 +33,7 @@ export function SampleTable({
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="bg-[#212636] text-left border-b border-muted-foreground/30">
+          <tr className="bg-muted/50 text-left border-b border-muted-foreground/30">
             {/* Checkbox column */}
             <th className="w-12 px-3 py-2">
               <Checkbox
