@@ -59,9 +59,11 @@ export function SampleRow({
           <AgeSex age={sample.age} sex={sample.sex} />
         </td>
 
-        {/* RIN - color coded */}
+        {/* Braak Stage */}
         <td className="px-3 py-2">
-          <RinValue value={sample.rin} />
+          <span className="text-sm text-foreground">
+            {sample.braakStage || "—"}
+          </span>
         </td>
 
         {/* PMI */}
@@ -198,28 +200,13 @@ function AgeSex({ age, sex }: { age: number | null; sex: "Male" | "Female" | nul
 }
 
 /**
- * RIN value display
- */
-function RinValue({ value }: { value: number | null }) {
-  if (value == null) {
-    return <span className="text-sm text-muted-foreground">—</span>;
-  }
-
-  return (
-    <span className="text-sm text-foreground">
-      {value.toFixed(1)}
-    </span>
-  );
-}
-
-/**
  * Expanded details section
  */
 function ExpandedDetails({ sample }: { sample: RecommendedSample }) {
   const details = [
     { label: "Diagnosis", value: sample.diagnosis },
     { label: "Type", value: sample.type },
-    { label: "Braak Stage", value: sample.braakStage },
+    { label: "RIN", value: sample.rin != null ? sample.rin.toFixed(1) : null },
     { label: "Price", value: sample.price != null ? `$${sample.price}` : null },
     { label: "Tissue Region", value: sample.details?.tissueRegion },
     { label: "Collection Date", value: sample.details?.collectionDate },
