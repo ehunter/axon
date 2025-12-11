@@ -65,7 +65,7 @@ function ChatPageContent() {
   return (
     <div className="flex flex-col h-full">
       {/* Main container with rounded top corners */}
-      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
         {/* Header */}
         <ChatHeader
           title={conversationTitle || "New Chat"}
@@ -381,7 +381,7 @@ export default function ChatPage() {
 function ChatPageLoading() {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
         <div className="flex items-center justify-center h-full">
           <p className="text-muted-foreground animate-pulse">Loading...</p>
         </div>

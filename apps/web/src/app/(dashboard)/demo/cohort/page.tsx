@@ -9,7 +9,7 @@ import { CohortSample } from "@/types/cohort";
 export default function CohortDemoPage() {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 flex flex-col bg-surface rounded-tl-3xl rounded-tr-3xl shadow-sm overflow-hidden">
+      <div className="flex-1 flex flex-col bg-surface shadow-sm overflow-hidden">
         <div className="flex-1 overflow-auto p-10">
           <SampleDataTable
             samples={MOCK_SAMPLES}
