@@ -295,13 +295,12 @@ export function ConfigForm({
       </div>
 
       {/* Footer with actions */}
-      <div className="flex items-center justify-between pt-5 mt-5 border-t border-muted-foreground/30">
-        <p className="text-xs text-muted-foreground max-w-md">
-          By submitting, you confirm that all information is accurate and tissue will be used 
-          in accordance with ethical guidelines for human tissue research.
+      <div className="flex items-center justify-end gap-4 pt-5 mt-5 border-t border-muted-foreground/30">
+        <p className="text-xs text-muted-foreground max-w-xs mr-auto">
+          By submitting, you confirm all information is accurate and tissue will be used per ethical guidelines.
         </p>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={onCancel}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-border bg-secondary text-foreground hover:bg-muted transition-colors"
